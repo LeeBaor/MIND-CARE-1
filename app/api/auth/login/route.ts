@@ -22,6 +22,7 @@ export async function POST(request: Request) {
     response.cookies.set('is_logged_in', 'true', common)
     response.cookies.set('user_role', normalizedRole, common)
     response.cookies.set('user_name', account.name, common)
+    response.cookies.set('user_email', email.trim().toLowerCase(), common)
     if (studentAnonymousId) response.cookies.set('anonymous_id', studentAnonymousId, common)
     return response
   } catch {

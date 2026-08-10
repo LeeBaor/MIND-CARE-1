@@ -17,11 +17,11 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
   const [activeTab, setActiveTab] = useState<'info' | 'history' | 'prescriptions' | 'security'>('info')
   const [role, setRole] = useState<'patient' | 'counselor'>('patient')
   const [userName, setUserName] = useState('')
-  const [email, setEmail] = useState('nguyenngoctrac@gmail.com')
-  const [phone, setPhone] = useState('0988 123 456')
-  const [dob, setDob] = useState('15/08/1999')
-  const [gender, setGender] = useState('Nam')
-  const [insuranceId, setInsuranceId] = useState('DN401088921234')
+  const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
+  const [dob, setDob] = useState('')
+  const [gender, setGender] = useState('')
+  const [insuranceId, setInsuranceId] = useState('')
   const [isEditing, setIsEditing] = useState(false)
   const [savedSuccess, setSavedSuccess] = useState(false)
 
@@ -34,6 +34,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     )
     if (cookies.user_role === 'counselor') setRole('counselor')
     if (cookies.user_name) setUserName(cookies.user_name)
+    if (cookies.user_email) setEmail(cookies.user_email)
   }, [])
 
   if (!isOpen) return null
@@ -41,6 +42,9 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault()
     setIsEditing(false)
+    document.cookie = `user_name=${encodeURIComponent(userName)}; path=/; max-age=${60 * 60 * 8}`
+    document.cookie = `user_email=${encodeURIComponent(email)}; path=/; max-age=${60 * 60 * 8}`
+    window.dispatchEvent(new Event('mind-care-profile-updated'))
     setSavedSuccess(true)
     setTimeout(() => setSavedSuccess(false), 3000)
   }
@@ -49,6 +53,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     document.cookie = 'is_logged_in=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
     document.cookie = 'user_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
     document.cookie = 'user_name=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+    document.cookie = 'user_email=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
     document.cookie = 'anonymous_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
     onClose()
     router.push('/login')

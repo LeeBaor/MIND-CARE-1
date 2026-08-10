@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { Heart, Bell, ShieldCheck, UserRound } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ProfileModal } from '@/components/profile-modal'
@@ -13,8 +14,9 @@ interface SiteHeaderProps {
 export function SiteHeader({ active = 'home' }: SiteHeaderProps) {
   const [role, setRole] = useState<string>('patient')
   const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const [userName, setUserName] = useState<string>('Tài khoản mới')
+  const [userName, setUserName] = useState<string>('')
   const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false)
+  const pathname = usePathname()
 
   useEffect(() => {
     // Read cookies
@@ -27,6 +29,15 @@ export function SiteHeader({ active = 'home' }: SiteHeaderProps) {
     setIsLoggedIn(cookies.is_logged_in === 'true')
     if (cookies.user_role) setRole(cookies.user_role)
     if (cookies.user_name) setUserName(cookies.user_name)
+    const refreshProfile = () => {
+      const updated = Object.fromEntries(document.cookie.split('; ').map((c) => {
+        const [k, v] = c.split('=')
+        return [k, decodeURIComponent(v || '')]
+      }))
+      if (updated.user_name) setUserName(updated.user_name)
+    }
+    window.addEventListener('mind-care-profile-updated', refreshProfile)
+    return () => window.removeEventListener('mind-care-profile-updated', refreshProfile)
   }, [])
 
   const patientNav = [
@@ -52,6 +63,7 @@ export function SiteHeader({ active = 'home' }: SiteHeaderProps) {
     .map((name) => name[0])
     .join('')
     .toUpperCase() || 'ND'
+  const showPersonalIdentity = pathname !== '/'
 
   return (
     <>
@@ -126,7 +138,7 @@ export function SiteHeader({ active = 'home' }: SiteHeaderProps) {
                 {role === 'counselor' ? 'BS' : initials}
               </div>
               <div className="hidden sm:flex flex-col text-left text-xs">
-                <span className="font-bold text-teal-950 line-clamp-1">{userName}</span>
+                <span className="font-bold text-teal-950 line-clamp-1">{showPersonalIdentity ? userName || 'Tài khoản' : 'Tài khoản'}</span>
                 <span className="text-[10px] text-teal-700 font-semibold">
                   {role === 'counselor' ? 'Bác sĩ / Chuyên gia' : 'Hồ sơ cá nhân'}
                 </span>
