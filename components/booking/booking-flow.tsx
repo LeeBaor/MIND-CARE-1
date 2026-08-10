@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Calendar as CalendarIcon, Clock, User, ChevronDown, Check, ArrowLeft, ArrowRight, ShieldCheck, Heart } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { saveBooking } from '@/lib/mind-care-store'
 
 const TITLES = [
   'Tất cả chức danh',
@@ -46,13 +47,23 @@ export function BookingFlow() {
   const [selectedDate, setSelectedDate] = useState(DATES[0])
   const [selectedSpecialty, setSelectedSpecialty] = useState('CK. Tư vấn Trầm cảm & Lo âu')
   const [selectedTime, setSelectedTime] = useState('09:00')
-  const [selectedCounselor, setSelectedCounselor] = useState('')
+  const [selectedCounselor, setSelectedCounselor] = useState('ThS. Nguyễn Minh An')
+  const [sessionMode, setSessionMode] = useState<'online' | 'offline'>('online')
   const [patientName, setPatientName] = useState('')
   const [patientPhone, setPatientPhone] = useState('')
   const [symptoms, setSymptoms] = useState('')
 
   async function confirmBooking() {
     await fetch('/api/bookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patientName, patientPhone, symptoms, selectedCounselor, selectedDate, selectedTime, selectedSpecialty }) })
+    saveBooking({
+      id: `LH-${Date.now().toString().slice(-6)}`,
+      counselor: selectedCounselor,
+      specialty: selectedSpecialty,
+      date: selectedDate.full,
+      time: selectedTime,
+      mode: sessionMode,
+      status: 'upcoming',
+    })
     setStep(4)
   }
 
@@ -101,9 +112,21 @@ export function BookingFlow() {
             <div>
               <label className="mb-1 block text-xs font-semibold text-slate-500">Chuyên gia / Thầy cô mong muốn</label>
               <select value={selectedCounselor} onChange={(e) => setSelectedCounselor(e.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 focus:border-teal-600 focus:outline-none">
-                <option value="">Chưa có chuyên gia khả dụng</option>
+                <option>ThS. Nguyễn Minh An</option>
+                <option>BS. Trần Thu Hà</option>
+                <option>Chuyên gia Lê Gia Hân</option>
               </select>
-              <p className="mt-1 text-[11px] text-slate-500">Danh sách sẽ hiển thị khi chuyên gia đăng ký và được cấp quyền.</p>
+              <p className="mt-1 text-[11px] text-slate-500">Chọn chuyên gia phù hợp với nhu cầu của bạn.</p>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-slate-500">Hình thức tham vấn</label>
+              <div className="grid grid-cols-2 gap-2">
+                {([['online', 'Trực tuyến'], ['offline', 'Tại phòng khám']] as const).map(([value, label]) => (
+                  <button key={value} type="button" onClick={() => setSessionMode(value)} className={cn('rounded-xl border px-3 py-2.5 text-xs font-bold transition-colors', sessionMode === value ? 'border-teal-600 bg-teal-50 text-teal-700' : 'border-slate-200 text-slate-600')}>
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
             {/* Title Selector Dropdown */}
             <div>

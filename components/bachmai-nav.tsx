@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, Calendar, ClipboardList, Bot, User, Bell } from 'lucide-react'
+import { Home, Calendar, ClipboardList, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function BachMaiNav() {
@@ -10,10 +10,10 @@ export function BachMaiNav() {
 
   const navItems = [
     {
-      label: 'Trang chủ',
-      href: '/',
-      icon: Home,
-      active: pathname === '/',
+      label: 'Tài khoản',
+      href: '/profile',
+      icon: User,
+      active: pathname.startsWith('/profile'),
     },
     {
       label: 'Kết quả',
@@ -22,21 +22,21 @@ export function BachMaiNav() {
       active: pathname.startsWith('/results'),
     },
     {
-      label: 'Đặt lịch',
+      label: 'Trang chủ',
+      href: '/',
+      icon: Home,
+      active: pathname === '/',
+    },
+    {
+      label: 'Lịch hẹn',
       href: '/booking',
       icon: Calendar,
       active: pathname.startsWith('/booking'),
     },
     {
-      label: 'Trợ lý AI',
-      href: '/ai-assistant',
-      icon: Bot,
-      active: pathname.startsWith('/ai-assistant'),
-    },
-    {
       label: 'Chức năng',
       href: '/dashboard',
-      icon: User,
+      icon: ClipboardList,
       active: pathname.startsWith('/dashboard'),
     },
   ]

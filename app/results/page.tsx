@@ -1,115 +1,86 @@
 'use client'
 
+import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
+import jsPDF from 'jspdf'
+import { BarChart3, Calendar, Download, FileText, ShieldCheck, Star, TrendingUp } from 'lucide-react'
 import { SiteHeader } from '@/components/site-header'
 import { SiteFooter } from '@/components/site-footer'
 import { BachMaiNav } from '@/components/bachmai-nav'
-import { ClipboardList, Download, Calendar, UserCheck, ShieldCheck, ArrowRight, Heart } from 'lucide-react'
-import Link from 'next/link'
-import jsPDF from 'jspdf'
+import { getAssessments, type MindAssessment } from '@/lib/mind-care-store'
 
 export default function ResultsPage() {
-  const exportPdf = () => {
+  const [records, setRecords] = useState<MindAssessment[]>([])
+  const [rating, setRating] = useState(0)
+  const [feedbackSent, setFeedbackSent] = useState(false)
+
+  useEffect(() => setRecords(getAssessments()), [])
+  const latest = records[0]
+  const average = useMemo(() => records.length ? Math.round(records.reduce((sum, item) => sum + item.total, 0) / records.length) : 0, [records])
+
+  function exportPdf() {
     const pdf = new jsPDF()
-    pdf.setFontSize(18); pdf.text('MIND CARE - PHIEU KET QUA DASS-21', 20, 24)
-    pdf.setFontSize(11); pdf.text(['Chua co du lieu DASS-21 de ket xuat.', 'Hoan thanh bai sang loc de tao phieu ket qua.'], 20, 40)
-    pdf.save('Phieu-ket-qua-DASS-21.pdf')
+    pdf.setFontSize(18)
+    pdf.text('MIND CARE - BAO CAO DANH GIA TAM LY', 18, 22)
+    pdf.setFontSize(11)
+    const lines = latest
+      ? [`Ma phieu: ${latest.id}`, `Ngay danh gia: ${latest.date}`, `Diem DASS-21: ${latest.total}`, `Tram cam: ${latest.depression} | Lo au: ${latest.anxiety} | Stress: ${latest.stress}`, `Muc do: ${latest.level}`, 'Bao cao nay chi co gia tri sang loc, khong thay the chan doan chuyen mon.']
+      : ['Chua co ket qua danh gia. Hay hoan thanh DASS-21 de tao bao cao.']
+    pdf.text(lines, 18, 40)
+    pdf.save('bao-cao-mind-care.pdf')
   }
-  const records: { id: string; testName: string; score: string; level: string; date: string; doctor: string; advice: string; statusColor: string }[] = []
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50">
+    <div className="flex min-h-screen flex-col bg-[#f5fbf7]">
       <SiteHeader active="results" />
-
-      <main className="flex-1 py-6 pb-16 md:pb-12">
-        <div className="mx-auto max-w-3xl px-4 space-y-6">
-
-          {/* Header Banner */}
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-xl flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-600 text-white shadow-md">
-                <ClipboardList className="h-6 w-6" />
-              </div>
+      <main className="flex-1 pb-24">
+        <div className="mx-auto max-w-3xl space-y-5 px-4 py-6">
+          <section className="rounded-[28px] bg-gradient-to-br from-emerald-700 to-teal-700 p-5 text-white shadow-lg">
+            <div className="flex items-start justify-between gap-3">
               <div>
-                <h1 className="font-heading text-lg sm:text-xl font-extrabold text-teal-900">
-                  Kết Quả & Hồ Sơ Tâm Lý
-                </h1>
-                <p className="text-xs text-slate-500 font-medium">Chưa có kết quả sàng lọc nào.</p>
+                <p className="text-xs font-bold uppercase tracking-[.14em] text-emerald-100">Hồ sơ Mind Care</p>
+                <h1 className="mt-1 font-heading text-2xl font-extrabold">Kết quả & tiến trình</h1>
+                <p className="mt-2 max-w-lg text-sm text-emerald-50">Theo dõi kết quả sàng lọc, lộ trình tham vấn và tiến bộ cảm xúc của bạn.</p>
               </div>
+              <button onClick={exportPdf} className="flex shrink-0 items-center gap-2 rounded-xl bg-white px-3 py-2 text-xs font-extrabold text-emerald-800"><Download className="h-4 w-4" /> PDF</button>
             </div>
+          </section>
 
-            <button onClick={exportPdf} className="hidden sm:flex items-center gap-1.5 rounded-xl border border-teal-600 bg-teal-50 px-3.5 py-2 text-xs font-bold text-teal-700 hover:bg-teal-100 transition-colors">
-              <Download className="h-4 w-4" />
-              <span>Tải báo cáo PDF</span>
-            </button>
-          </div>
+          <section className="grid grid-cols-3 gap-3">
+            <Metric label="Bài đánh giá" value={String(records.length)} icon={FileText} />
+            <Metric label="Điểm gần nhất" value={latest ? String(latest.total) : '—'} icon={BarChart3} />
+            <Metric label="Điểm trung bình" value={records.length ? String(average) : '—'} icon={TrendingUp} />
+          </section>
 
-          {/* Records List */}
-          <div className="space-y-4">
-            <h2 className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">
-              Lịch sử làm bài trắc nghiệm & chẩn đoán
-            </h2>
-
-            {records.map((rec) => (
-              <div
-                key={rec.id}
-                className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm space-y-3 hover:border-teal-300 transition-all"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
-                  <div>
-                    <span className="text-[11px] font-bold text-slate-400">Mã phiếu: {rec.id}</span>
-                    <h3 className="font-heading font-extrabold text-slate-900 text-base">{rec.testName}</h3>
-                  </div>
-                  <span className={`rounded-xl border px-3 py-1 text-xs font-extrabold ${rec.statusColor}`}>
-                    {rec.score} • {rec.level}
-                  </span>
-                </div>
-
-                <div className="grid sm:grid-cols-2 gap-3 text-xs">
-                  <div className="flex items-center gap-2 text-slate-600">
-                    <Calendar className="h-4 w-4 text-teal-600 shrink-0" />
-                    <span>Ngày đánh giá: <strong className="text-slate-800">{rec.date}</strong></span>
-                  </div>
-                  <div className="flex items-center gap-2 text-slate-600">
-                    <UserCheck className="h-4 w-4 text-teal-600 shrink-0" />
-                    <span>Chuyên gia phụ trách: <strong className="text-slate-800">{rec.doctor}</strong></span>
-                  </div>
-                </div>
-
-                <div className="rounded-2xl bg-slate-50 p-3 text-xs text-slate-700 border border-slate-100">
-                  <span className="font-bold text-teal-800 block mb-0.5">💡 Lời khuyên chuyên môn:</span>
-                  <p className="leading-relaxed font-medium">{rec.advice}</p>
-                </div>
+          {latest ? (
+            <section className="rounded-[28px] border border-emerald-100 bg-white p-5 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div><p className="text-xs font-bold uppercase tracking-wider text-emerald-600">Kết quả mới nhất</p><h2 className="mt-1 text-lg font-extrabold text-slate-900">DASS-21 · {latest.level}</h2><p className="mt-1 flex items-center gap-1 text-xs font-medium text-slate-500"><Calendar className="h-3.5 w-3.5" /> {latest.date}</p></div>
+                <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">{latest.id}</span>
               </div>
-            ))}
-            {records.length === 0 && (
-              <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
-                Hồ sơ trống. Hãy hoàn thành bài sàng lọc DASS-21 để tạo kết quả đầu tiên.
+              <div className="mt-5 grid grid-cols-3 gap-2 text-center text-xs">
+                <Score label="Trầm cảm" score={latest.depression} />
+                <Score label="Lo âu" score={latest.anxiety} />
+                <Score label="Stress" score={latest.stress} />
               </div>
-            )}
-          </div>
+              <p className="mt-4 rounded-2xl bg-emerald-50 p-3 text-xs leading-relaxed text-emerald-950">Kết quả là thông tin sàng lọc ban đầu. Bạn có thể đặt lịch để được chuyên gia trao đổi riêng tư và xây dựng kế hoạch hỗ trợ phù hợp.</p>
+            </section>
+          ) : (
+            <section className="rounded-[28px] border border-dashed border-emerald-200 bg-white p-8 text-center"><ShieldCheck className="mx-auto h-10 w-10 text-emerald-600" /><h2 className="mt-3 font-heading text-lg font-extrabold text-slate-900">Chưa có kết quả sàng lọc</h2><p className="mt-1 text-sm text-slate-500">Hoàn thành DASS-21 để tạo hồ sơ theo dõi đầu tiên.</p><Link href="/assessment" className="mt-4 inline-flex rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white">Làm bài đánh giá</Link></section>
+          )}
 
-          {/* CTA Banner */}
-          <div className="rounded-3xl bg-teal-900 text-white p-5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg">
-            <div className="flex items-center gap-3">
-              <Heart className="h-8 w-8 text-emerald-300 fill-emerald-300/20 shrink-0" />
-              <div>
-                <h4 className="font-bold text-sm sm:text-base">Bạn muốn tham vấn sâu hơn với Chuyên gia?</h4>
-                <p className="text-xs text-teal-200 mt-0.5">Đặt lịch tư vấn 1-1 trực tuyến cùng bác sĩ chuyên khoa Mind Care.</p>
-              </div>
-            </div>
-            <Link
-              href="/booking"
-              className="rounded-2xl bg-white px-4 py-2.5 text-xs font-extrabold text-teal-900 hover:bg-teal-50 shrink-0 transition-transform active:scale-95"
-            >
-              Đặt lịch ngay
-            </Link>
-          </div>
-
+          <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="font-heading text-base font-extrabold text-slate-900">Đánh giá buổi tham vấn</h2>
+            <p className="mt-1 text-xs text-slate-500">Phản hồi giúp Mind Care đề xuất chuyên gia phù hợp hơn.</p>
+            <div className="mt-3 flex gap-2">{[1,2,3,4,5].map((item) => <button key={item} onClick={() => { setRating(item); setFeedbackSent(false) }} className="rounded-xl p-2"><Star className={`h-7 w-7 ${item <= rating ? 'fill-amber-400 text-amber-400' : 'text-slate-200'}`} /></button>)}</div>
+            <button disabled={!rating} onClick={() => setFeedbackSent(true)} className="mt-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white disabled:opacity-40">{feedbackSent ? 'Đã gửi đánh giá' : 'Gửi đánh giá'}</button>
+          </section>
         </div>
       </main>
-
-      <SiteFooter />
-      <BachMaiNav />
+      <SiteFooter /><BachMaiNav />
     </div>
   )
 }
+
+function Metric({ label, value, icon: Icon }: { label: string; value: string; icon: typeof FileText }) { return <div className="rounded-2xl border border-emerald-100 bg-white p-3 text-center shadow-sm"><Icon className="mx-auto h-4 w-4 text-emerald-600" /><strong className="mt-1 block text-lg text-slate-900">{value}</strong><span className="text-[10px] font-semibold text-slate-500">{label}</span></div> }
+function Score({ label, score }: { label: string; score: number }) { return <div className="rounded-2xl bg-slate-50 p-3"><strong className="block text-lg text-emerald-700">{score}</strong><span className="text-[11px] font-semibold text-slate-500">{label}</span></div> }

@@ -25,6 +25,7 @@ import {
   RISK_META,
   classifyDass,
 } from '@/lib/mind-care'
+import { saveAssessment } from '@/lib/mind-care-store'
 
 type Step = 'info' | 'quiz' | 'result'
 
@@ -45,6 +46,21 @@ export function AssessmentFlow() {
   function reset() {
     setStep('info')
     setAnswers({})
+  }
+
+  function showResult() {
+    const scored = classifyDass(answers)
+    saveAssessment({
+      id: `MC-${Date.now().toString().slice(-6)}`,
+      name: name.trim(),
+      date: new Date().toLocaleDateString('vi-VN'),
+      total: scored.total,
+      depression: scored.depression,
+      anxiety: scored.anxiety,
+      stress: scored.stress,
+      level: RISK_META[scored.risk].label,
+    })
+    setStep('result')
   }
 
   return (
@@ -152,7 +168,7 @@ export function AssessmentFlow() {
             <Button
               className="h-11 flex-1"
               disabled={!allAnswered}
-              onClick={() => setStep('result')}
+              onClick={showResult}
             >
               {allAnswered ? 'Xem kết quả' : `Còn ${ASSESSMENT_QUESTIONS.length - answeredCount} câu`}
               <ArrowRight className="size-4" />

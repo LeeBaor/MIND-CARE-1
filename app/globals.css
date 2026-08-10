@@ -5,8 +5,8 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-sans: var(--font-nunito);
-  --font-heading: var(--font-poppins);
+  --font-sans: "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Segoe UI", ui-sans-serif, system-ui, sans-serif;
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);

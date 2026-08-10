@@ -1,19 +1,6 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
-import { Poppins, Nunito } from 'next/font/google'
 import './globals.css'
-
-const poppins = Poppins({
-  subsets: ['latin'],
-  weight: ['500', '600', '700'],
-  variable: '--font-poppins',
-})
-
-const nunito = Nunito({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-nunito',
-})
 
 export const metadata: Metadata = {
   title: 'MIND-CARE — Chăm sóc sức khỏe tinh thần học đường',
@@ -33,7 +20,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="vi" className={`${poppins.variable} ${nunito.variable} bg-background`}>
+    <html lang="vi" className="bg-background">
       <body className="font-sans antialiased">
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
