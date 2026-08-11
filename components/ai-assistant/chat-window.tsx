@@ -12,6 +12,23 @@ interface Message {
   list?: string[]
 }
 
+function buildSupportReply(text: string): Pick<Message, 'text' | 'list'> {
+  const normalized = text.toLowerCase()
+  if (/tự sát|tu sat|muốn chết|muon chet|tự làm hại|tu lam hai|không muốn sống|khong muon song/.test(normalized)) {
+    return { text: 'Mình rất tiếc vì bạn đang phải chịu đựng điều này. Điều quan trọng nhất lúc này là an toàn của bạn. Hãy gọi 115 hoặc 111, hoặc liên hệ ngay với một người thân đang ở gần bạn. Bạn không cần phải ở một mình.', list: ['Di chuyển đến nơi có người hoặc nơi an toàn.', 'Gọi 115/111 hoặc nhờ người thân hỗ trợ ngay.', 'Bạn có thể bấm SOS để gửi yêu cầu hỗ trợ khẩn cấp.'] }
+  }
+  if (/chán|chan|tuyệt vọng|tuyet vong|kiệt sức|kiet suc/.test(normalized)) {
+    return { text: 'Cảm ơn bạn đã nói ra điều này. Cảm giác chán nản hoặc kiệt sức có thể rất nặng nề; bạn không cần tự giải quyết tất cả ngay bây giờ.', list: ['Thử uống nước, ngồi ở nơi yên tĩnh và hít thở chậm 4 nhịp.', 'Ghi lại điều khiến bạn mệt nhất hôm nay.', 'Nếu cảm giác kéo dài hoặc bạn thấy không an toàn, hãy đặt lịch gặp chuyên gia hoặc bấm SOS.'] }
+  }
+  if (/lo âu|lo au|hoảng|hoang|tim đập|tim dap/.test(normalized)) {
+    return { text: 'Những dấu hiệu lo âu có thể khiến cơ thể rất khó chịu. Mình có thể cùng bạn làm một bước nhỏ ngay bây giờ: hít vào 4 giây, giữ 4 giây, thở ra 6 giây; lặp lại 5 lần.', list: ['Tránh cà phê hoặc chất kích thích trong vài giờ tới.', 'Ghi mức lo âu từ 1–10 và điều vừa xảy ra.', 'Nếu lặp lại nhiều ngày, hãy làm GAD-7 và đặt lịch tư vấn.'] }
+  }
+  if (/mất ngủ|mat ngu|khó ngủ|kho ngu|ngủ không/.test(normalized)) {
+    return { text: 'Mất ngủ thường làm cảm xúc nhạy cảm hơn vào ngày hôm sau. Tối nay bạn có thể ưu tiên một nhịp sinh hoạt nhẹ nhàng thay vì cố ép mình phải ngủ ngay.', list: ['Ngừng màn hình sáng 30 phút trước khi ngủ.', 'Thử bài thở 4–7–8 hoặc thư giãn cơ thể 10 phút.', 'Theo dõi giờ ngủ 7 ngày; nếu kéo dài, hãy trao đổi cùng chuyên gia.'] }
+  }
+  return { text: 'Cảm ơn bạn đã chia sẻ. Mình đã ghi nhận điều bạn nói và có thể giúp bạn chọn bước tiếp theo phù hợp.', list: ['Bạn muốn nói thêm về điều gì khiến bạn khó chịu nhất?', 'Bạn có thể làm bài sàng lọc hoặc đặt lịch với chuyên gia.', 'Nếu có nguy cơ khẩn cấp, hãy bấm SOS để được hỗ trợ ngay.'] }
+}
+
 export function ChatWindow() {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -54,10 +71,12 @@ export function ChatWindow() {
     setInput('')
 
     setTimeout(() => {
+      const reply = buildSupportReply(userMsg.text)
       const botMsg: Message = {
         id: Date.now() + 1,
         sender: 'bot',
-        text: 'Cảm ơn bạn đã chia sẻ. Trợ lý AI Mind Care luôn sẵn sàng lắng nghe và đồng hành cùng bạn. Bạn có thể nhấn chọn Đặt lịch tư vấn bên dưới để gặp trực tiếp Chuyên gia tâm lý nhé!',
+        text: reply.text,
+        list: reply.list,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       }
       setMessages((prev) => [...prev, botMsg])

@@ -4,6 +4,8 @@
 
 Nhấp đúp vào `run-dev.cmd` trong thư mục dự án. Tệp này giữ mã nguồn, bộ nhớ đệm npm và các tệp tạm trên ổ D. Khi màn hình thông báo ứng dụng đã sẵn sàng, mở trình duyệt tại địa chỉ `http://localhost:3000`.
 
+Để chỉ xem và dùng website với tốc độ ổn định, nhấp đúp `run-web.cmd`. Tệp này chạy bản production đã được biên dịch sẵn, nên không có trạng thái `Compiling...` khi mở trang mới. Đóng `run-dev.cmd` trước khi chạy tệp này.
+
 Nếu đang dùng cửa sổ dòng lệnh, chạy:
 
 ```cmd

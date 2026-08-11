@@ -57,6 +57,8 @@ export function BookingFlow() {
     await fetch('/api/bookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patientName, patientPhone, symptoms, selectedCounselor, selectedDate, selectedTime, selectedSpecialty }) })
     saveBooking({
       id: `LH-${Date.now().toString().slice(-6)}`,
+      patientName: patientName.trim(),
+      patientEmail: document.cookie.split('; ').find((value) => value.startsWith('user_email='))?.split('=')[1] || '',
       counselor: selectedCounselor,
       specialty: selectedSpecialty,
       date: selectedDate.full,
@@ -115,6 +117,7 @@ export function BookingFlow() {
                 <option>ThS. Nguyễn Minh An</option>
                 <option>BS. Trần Thu Hà</option>
                 <option>Chuyên gia Lê Gia Hân</option>
+                <option>Đặng Hiếu</option>
               </select>
               <p className="mt-1 text-[11px] text-slate-500">Chọn chuyên gia phù hợp với nhu cầu của bạn.</p>
             </div>

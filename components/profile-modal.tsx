@@ -6,6 +6,7 @@ import {
   X, User, Phone, Mail, Calendar, ShieldCheck, CreditCard, 
   FileText, Pill, Lock, LogOut, Edit3, Heart, CheckCircle2, ChevronRight 
 } from 'lucide-react'
+import { getCarePlans, getClinicalRecords, type CarePlan, type ClinicalRecord } from '@/lib/mind-care-store'
 
 interface ProfileModalProps {
   isOpen: boolean
@@ -24,6 +25,8 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
   const [insuranceId, setInsuranceId] = useState('')
   const [isEditing, setIsEditing] = useState(false)
   const [savedSuccess, setSavedSuccess] = useState(false)
+  const [records, setRecords] = useState<ClinicalRecord[]>([])
+  const [carePlans, setCarePlans] = useState<CarePlan[]>([])
 
   useEffect(() => {
     const cookies = Object.fromEntries(
@@ -35,7 +38,11 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     if (cookies.user_role === 'counselor') setRole('counselor')
     if (cookies.user_name) setUserName(cookies.user_name)
     if (cookies.user_email) setEmail(cookies.user_email)
-  }, [])
+    if (cookies.user_name) {
+      setRecords(getClinicalRecords().filter((item) => item.patientName === cookies.user_name))
+      setCarePlans(getCarePlans().filter((item) => item.patientName === cookies.user_name))
+    }
+  }, [isOpen])
 
   if (!isOpen) return null
 
@@ -239,14 +246,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
           {activeTab === 'history' && (
             <div className="space-y-3">
               <span className="text-xs font-extrabold text-slate-400 uppercase tracking-wider block">Lịch tư vấn gần đây</span>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3.5 text-xs space-y-1">
-                <div className="flex justify-between font-bold text-teal-800">
-                  <span>Khám Tư vấn Trầm cảm & Lo âu</span>
-                  <span>25/06/2025</span>
-                </div>
-                <p className="text-slate-600 font-medium">Bác sĩ: ThS. BS. Vũ Hoàng Thảo</p>
-                <span className="inline-block bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded">Đã hoàn thành</span>
-              </div>
+              {records.length ? records.map((record) => <div key={record.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-3.5 text-xs space-y-1"><div className="flex justify-between font-bold text-teal-800"><span>Buổi tham vấn đã hoàn tất</span><span>{record.completedAt}</span></div><p className="text-slate-600 font-medium">Chuyên gia: {record.counselor}</p><p className="rounded-xl bg-white p-2 text-slate-700">{record.summary}</p><span className="inline-block bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded">Đã hoàn thành</span></div>) : <EmptyCareState text="Chưa có lịch sử khám. Lịch sử chỉ xuất hiện sau khi chuyên gia xác nhận hoàn tất buổi tham vấn." />}
             </div>
           )}
 
@@ -254,13 +254,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
           {activeTab === 'prescriptions' && (
             <div className="space-y-3">
               <span className="text-xs font-extrabold text-slate-400 uppercase tracking-wider block">Đơn thuốc & Bài tập được kê</span>
-              <div className="rounded-2xl border border-teal-200 bg-emerald-50/50 p-3.5 text-xs space-y-1">
-                <span className="font-bold text-teal-900 block">🧘 Bài tập hít thở 4-7-8 & Thiền định tối</span>
-                <p className="text-slate-600 font-medium">Người kê: BS. Bùi Văn Cường</p>
-                <p className="text-slate-700 text-[11px] mt-1 bg-white p-2 rounded-xl border border-emerald-100">
-                  Duy trì 15 phút trước khi đi ngủ. Lắng nghe cơ thể và ghi chép nhật ký cảm xúc.
-                </p>
-              </div>
+              {carePlans.length ? carePlans.map((plan) => <div key={plan.id} className="rounded-2xl border border-teal-200 bg-emerald-50/50 p-3.5 text-xs space-y-1"><span className="font-bold text-teal-900 block">{plan.kind === 'exercise' ? '🧘' : '💊'} {plan.title}</span><p className="text-slate-600 font-medium">Người kê: {plan.counselor} · {plan.releasedAt}</p><p className="text-slate-700 text-[11px] mt-1 bg-white p-2 rounded-xl border border-emerald-100">{plan.notes}</p></div>) : <EmptyCareState text="Chưa có đơn thuốc hoặc bài tập. Nội dung chỉ xuất hiện khi chuyên gia phát hành sau buổi khám." />}
             </div>
           )}
 
@@ -304,4 +298,8 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
       </div>
     </div>
   )
+}
+
+function EmptyCareState({ text }: { text: string }) {
+  return <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-5 text-center text-xs leading-relaxed text-slate-500">{text}</div>
 }
