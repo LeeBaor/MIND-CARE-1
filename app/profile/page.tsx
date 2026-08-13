@@ -5,15 +5,15 @@ import { BadgeCheck, Barcode, ChevronRight, Eye, EyeOff, QrCode, ShieldCheck, Us
 import { SiteHeader } from '@/components/site-header'
 import { SiteFooter } from '@/components/site-footer'
 import { BachMaiNav } from '@/components/bachmai-nav'
-import { getFamilyMembers, saveFamilyMembers, type FamilyMember } from '@/lib/mind-care-store'
+import { type FamilyMember } from '@/lib/mind-care-store'
 
 export default function ProfilePage() {
   const [name, setName] = useState('Khách hàng Mind Care')
   const [share, setShare] = useState(true)
   const [members, setMembers] = useState<FamilyMember[]>([])
   const [familyForm, setFamilyForm] = useState({ name: '', dob: '', cccd: '', phone: '' })
-  useEffect(() => { const item = document.cookie.split('; ').find(value => value.startsWith('user_name=')); if (item) setName(decodeURIComponent(item.split('=')[1])); setMembers(getFamilyMembers()) }, [])
-  function addMember(e: React.FormEvent) { e.preventDefault(); if (!familyForm.name || !familyForm.dob || !familyForm.cccd || !familyForm.phone) return; const next = [...members, { id: `TV-${Date.now()}`, ...familyForm }]; setMembers(next); saveFamilyMembers(next); setFamilyForm({ name: '', dob: '', cccd: '', phone: '' }) }
+  useEffect(() => { const item = document.cookie.split('; ').find(value => value.startsWith('user_name=')); if (item) setName(decodeURIComponent(item.split('=')[1])); fetch('/api/family-members').then(response => response.ok ? response.json() : Promise.reject()).then(setMembers).catch(() => setMembers([])) }, [])
+  async function addMember(e: React.FormEvent) { e.preventDefault(); if (!familyForm.name || !familyForm.dob || !familyForm.phone) return; const response = await fetch('/api/family-members', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(familyForm) }); if (!response.ok) return; const member = await response.json(); setMembers([...members, member]); setFamilyForm({ name: '', dob: '', cccd: '', phone: '' }) }
   return <div className="flex min-h-screen flex-col bg-[#f4fbf6]"><SiteHeader />
     <main className="flex-1 pb-24"><div className="mx-auto max-w-2xl space-y-5 px-4 py-6">
       <section className="rounded-[30px] bg-gradient-to-br from-emerald-700 to-teal-700 p-5 text-white"><p className="text-xs font-bold uppercase tracking-[.16em] text-emerald-100">Mind Profile</p><h1 className="mt-1 font-heading text-2xl font-extrabold">Hồ sơ tâm lý riêng tư</h1><p className="mt-2 text-sm text-emerald-50">Chủ động quản lý thông tin và quyền chia sẻ hồ sơ.</p></section>

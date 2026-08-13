@@ -24,14 +24,18 @@ interface SosButtonProps {
 export function SosButton({ variant = 'hero', className }: SosButtonProps) {
   const [open, setOpen] = useState(false)
   const [state, setState] = useState<SosState>('idle')
+  const [error, setError] = useState('')
 
   async function handleSend() {
     setState('sending')
+    setError('')
     try {
-      await fetch('/api/alerts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source: 'student-sos' }) })
+      const response = await fetch('/api/alerts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source: 'student-sos' }) })
+      if (!response.ok) throw new Error('SOS_NOT_SAVED')
       setState('sent')
     } catch {
       setState('idle')
+      setError('Không thể gửi qua hệ thống. Nếu bạn đang không an toàn, hãy gọi ngay Tổng đài 111.')
     }
   }
 
@@ -135,6 +139,7 @@ export function SosButton({ variant = 'hero', className }: SosButtonProps) {
                 )}
               </Button>
             </div>
+            {error && <p role="alert" className="rounded-xl border border-danger/30 bg-danger/5 p-3 text-sm font-medium text-danger">{error}</p>}
           </>
         )}
       </DialogContent>

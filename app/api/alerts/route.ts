@@ -1,10 +1,10 @@
+import { randomUUID } from 'node:crypto'
+import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { getDb, sql } from '@/lib/db'
+import { readSessionToken } from '@/lib/session'
 
-// Integration point for Pusher/SSE. Replace this audit sink with a database and
-// publish to the configured provider in production.
-export async function POST(request: Request) {
-  const payload = await request.json().catch(() => ({}))
-  const alert = { id: crypto.randomUUID(), type: 'SOS', severity: 'RED', createdAt: new Date().toISOString(), ...payload }
-  console.warn('[MIND-CARE SOS]', JSON.stringify(alert))
-  return NextResponse.json({ ok: true, alert })
+export async function POST(request:Request) {
+  const session=await readSessionToken((await cookies()).get('auth_session')?.value); const payload=await request.json().catch(()=>({}));
+  try { const id=randomUUID(); const createdAt=new Date(); await (await getDb()).request().input('id',sql.UniqueIdentifier,id).input('userId',sql.UniqueIdentifier,session?.userId||null).input('payload',sql.NVarChar(sql.MAX),JSON.stringify(payload)).query('INSERT INTO sos_requests(id,user_id,payload) VALUES(@id,@userId,@payload)'); console.warn('[MIND-CARE SOS]',JSON.stringify({id,userId:session?.userId,createdAt})); return NextResponse.json({ok:true,alert:{id,status:'open',createdAt,payload}}) } catch(error) { console.error('[MIND-CARE SOS ERROR]',error); return NextResponse.json({message:'Không thể gửi tín hiệu SOS. Hãy gọi 111 nếu bạn đang không an toàn.'},{status:503}) }
 }

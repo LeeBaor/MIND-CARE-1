@@ -52,11 +52,29 @@ export function BookingFlow() {
   const [patientName, setPatientName] = useState('')
   const [patientPhone, setPatientPhone] = useState('')
   const [symptoms, setSymptoms] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [bookingError, setBookingError] = useState('')
 
   async function confirmBooking() {
-    await fetch('/api/bookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patientName, patientPhone, symptoms, selectedCounselor, selectedDate, selectedTime, selectedSpecialty }) })
+    setSubmitting(true)
+    setBookingError('')
+    const [day, month, year] = selectedDate.date.split('/').length === 2
+      ? [selectedDate.date.split('/')[0], selectedDate.date.split('/')[1], String(new Date().getFullYear())]
+      : selectedDate.date.split('/')
+    const response = await fetch('/api/bookings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ patientName, patientPhone, symptoms, selectedCounselor, selectedSpecialty, mode: sessionMode, scheduledAt: `${year}-${month}-${day}T${selectedTime}:00+07:00` }),
+    }).catch(() => null)
+    setSubmitting(false)
+    if (!response?.ok) {
+      const payload = response ? await response.json().catch(() => ({})) : {}
+      setBookingError(payload.message || 'Không thể đặt lịch. Vui lòng thử lại.')
+      return
+    }
+    const persisted = await response.json()
     saveBooking({
-      id: `LH-${Date.now().toString().slice(-6)}`,
+      id: persisted.bookingId,
       patientName: patientName.trim(),
       patientEmail: document.cookie.split('; ').find((value) => value.startsWith('user_email='))?.split('=')[1] || '',
       counselor: selectedCounselor,
@@ -304,7 +322,7 @@ export function BookingFlow() {
           </button>
 
           <button
-            disabled={step === 3 && (!patientName.trim() || !patientPhone.trim() || !selectedCounselor)}
+            disabled={submitting || (step === 3 && (!patientName.trim() || !patientPhone.trim() || !selectedCounselor))}
             onClick={() => {
               if (step === 3) { void confirmBooking() }
               else if (step < 4) setStep((prev) => prev + 1)
@@ -312,10 +330,11 @@ export function BookingFlow() {
             }}
             className="flex items-center gap-2 rounded-2xl bg-teal-600 px-6 py-2.5 text-sm font-bold text-white shadow-md hover:bg-teal-700 transition-all disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <span>{step === 4 ? 'Đặt lịch mới' : step === 3 ? 'Xác nhận đặt lịch' : 'Tiếp theo'}</span>
+            <span>{submitting ? 'Đang lưu lịch hẹn...' : step === 4 ? 'Đặt lịch mới' : step === 3 ? 'Xác nhận đặt lịch' : 'Tiếp theo'}</span>
             <ArrowRight className="h-4 w-4" />
           </button>
         </div>
+        {bookingError && <p role="alert" className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-700">{bookingError}</p>}
       </div>
     </div>
   )

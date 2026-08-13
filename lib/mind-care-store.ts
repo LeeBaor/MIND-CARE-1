@@ -2,6 +2,10 @@
 
 export type MindAssessment = {
   id: string
+  surveyId: 'DASS-21'
+  surveyVersion: string
+  source: 'survey'
+  completedAt: string
   name: string
   date: string
   total: number

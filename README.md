@@ -20,3 +20,18 @@ Lệnh `npm.cmd` được dùng để tránh thiết lập PowerShell trên máy
 npm.cmd run build
 npm.cmd run start
 ```
+
+## Cấu hình Microsoft SQL Server
+
+Project đang dùng SQL Server Express cục bộ, database `MINDCARE`, qua cổng riêng `14330`. File `.env.local` đã được cấu hình trên máy này.
+
+1. Khi chuyển sang máy khác, sao chép `.env.example` thành `.env.local` và thay thông tin SQL Server cùng `AUTH_SECRET`.
+2. Áp dụng cấu trúc database:
+
+```cmd
+npm.cmd run db:migrate
+```
+
+3. Khởi động lại ứng dụng. Đăng ký, đăng nhập, hồ sơ, kết quả DASS-21, lịch hẹn và SOS được lưu trong SQL Server.
+
+`AUTH_SECRET` nên là chuỗi ngẫu nhiên dài ít nhất 32 ký tự. Không đưa `.env.local` lên Git hoặc chia sẻ mật khẩu database.

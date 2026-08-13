@@ -1,36 +1,31 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { readSessionToken } from '@/lib/session'
 
-export function middleware(request: NextRequest) {
-  const role = request.cookies.get('user_role')?.value
-  const loggedIn = request.cookies.get('is_logged_in')?.value
-  const { pathname } = request.nextUrl
+const publicPaths = ['/', '/login', '/register']
 
-  // Cho phép truy cập công khai các đường dẫn auth & assets
+export async function middleware(request: NextRequest) {
+  const { pathname, search } = request.nextUrl
   if (
-    pathname === '/' ||
-    pathname.startsWith('/login') ||
-    pathname.startsWith('/register') ||
-    pathname.startsWith('/api') ||
+    publicPaths.includes(pathname) ||
+    pathname.startsWith('/api/auth') ||
+    pathname === '/api/alerts' ||
     pathname.startsWith('/_next') ||
     pathname.includes('.')
-  ) {
-    return NextResponse.next()
+  ) return NextResponse.next()
+
+  const session = await readSessionToken(request.cookies.get('auth_session')?.value)
+  if (!session) {
+    if (pathname.startsWith('/api/')) return NextResponse.json({ message: 'Bạn cần đăng nhập.' }, { status: 401 })
+    const loginUrl = new URL('/login', request.url)
+    loginUrl.searchParams.set('next', `${pathname}${search}`)
+    return NextResponse.redirect(loginUrl)
   }
 
-  // Yêu cầu đăng nhập trước khi truy cập bất kỳ trang nào
-  if (!loggedIn) {
-    return NextResponse.redirect(new URL('/login', request.url))
-  }
-
-  // Phân luồng vai trò Chuyên viên (/counselor) vs Người dùng (/ hoặc /dashboard)
-  if (pathname.startsWith('/counselor') && role !== 'counselor' && role !== 'admin') {
+  if (pathname.startsWith('/counselor') && !['counselor', 'admin'].includes(session.role)) {
     return NextResponse.redirect(new URL('/', request.url))
   }
-
   return NextResponse.next()
 }
 
-export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
-}
+export const config = { matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'] }

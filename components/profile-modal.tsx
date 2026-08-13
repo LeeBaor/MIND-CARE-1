@@ -27,6 +27,9 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
   const [savedSuccess, setSavedSuccess] = useState(false)
   const [records, setRecords] = useState<ClinicalRecord[]>([])
   const [carePlans, setCarePlans] = useState<CarePlan[]>([])
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [formError, setFormError] = useState('')
 
   useEffect(() => {
     const cookies = Object.fromEntries(
@@ -42,28 +45,40 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
       setRecords(getClinicalRecords().filter((item) => item.patientName === cookies.user_name))
       setCarePlans(getCarePlans().filter((item) => item.patientName === cookies.user_name))
     }
+    fetch('/api/profile').then((response) => response.ok ? response.json() : Promise.reject()).then((profile) => {
+      setUserName(profile.fullName || '')
+      setEmail(profile.email || '')
+      setPhone(profile.phone || '')
+      setDob(profile.birthDate || '')
+      setGender(profile.gender || '')
+    }).catch(() => undefined)
   }, [isOpen])
 
   if (!isOpen) return null
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
+    setFormError('')
+    const response = await fetch('/api/profile', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fullName: userName, phone, birthDate: dob, gender }) }).catch(() => null)
+    if (!response?.ok) { const data = response ? await response.json().catch(() => ({})) : {}; setFormError(data.message || 'Không thể cập nhật hồ sơ.'); return }
     setIsEditing(false)
-    document.cookie = `user_name=${encodeURIComponent(userName)}; path=/; max-age=${60 * 60 * 8}`
-    document.cookie = `user_email=${encodeURIComponent(email)}; path=/; max-age=${60 * 60 * 8}`
     window.dispatchEvent(new Event('mind-care-profile-updated'))
     setSavedSuccess(true)
     setTimeout(() => setSavedSuccess(false), 3000)
   }
 
-  const handleLogout = () => {
-    document.cookie = 'is_logged_in=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
-    document.cookie = 'user_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
-    document.cookie = 'user_name=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
-    document.cookie = 'user_email=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
-    document.cookie = 'anonymous_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' }).catch(() => undefined)
     onClose()
     router.push('/login')
+    router.refresh()
+  }
+
+  async function handlePasswordChange() {
+    setFormError('')
+    const response = await fetch('/api/auth/password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ currentPassword, newPassword }) }).catch(() => null)
+    if (!response?.ok) { const data = response ? await response.json().catch(() => ({})) : {}; setFormError(data.message || 'Không thể đổi mật khẩu.'); return }
+    setCurrentPassword(''); setNewPassword(''); setSavedSuccess(true); setTimeout(() => setSavedSuccess(false), 3000)
   }
 
   return (
@@ -152,6 +167,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
               <span>Đã cập nhật thông tin cá nhân thành công!</span>
             </div>
           )}
+          {formError && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-bold text-rose-700">{formError}</div>}
 
           {/* TAB 1: Personal Info Form */}
           {activeTab === 'info' && (
@@ -264,13 +280,13 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
               <span className="text-xs font-extrabold text-slate-400 uppercase tracking-wider block">Đổi mật khẩu & Bảo mật</span>
               <div>
                 <label className="block text-slate-600 font-semibold mb-1">Mật khẩu hiện tại</label>
-                <input type="password" placeholder="••••••••" className="w-full rounded-xl border border-slate-300 p-2.5" />
+                <input type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} placeholder="••••••••" className="w-full rounded-xl border border-slate-300 p-2.5" />
               </div>
               <div>
                 <label className="block text-slate-600 font-semibold mb-1">Mật khẩu mới</label>
-                <input type="password" placeholder="••••••••" className="w-full rounded-xl border border-slate-300 p-2.5" />
+                <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Tối thiểu 8 ký tự" className="w-full rounded-xl border border-slate-300 p-2.5" />
               </div>
-              <button onClick={() => alert('Đã cập nhật mật khẩu thành công!')} className="w-full py-2.5 bg-teal-600 text-white font-bold rounded-xl shadow-xs">
+              <button disabled={!currentPassword || newPassword.length < 8} onClick={handlePasswordChange} className="w-full py-2.5 bg-teal-600 text-white font-bold rounded-xl shadow-xs disabled:opacity-50">
                 Cập nhật mật khẩu
               </button>
             </div>

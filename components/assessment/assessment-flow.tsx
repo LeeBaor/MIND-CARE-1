@@ -38,6 +38,8 @@ export function AssessmentFlow() {
   const [name, setName] = useState('')
   const [grade, setGrade] = useState('')
   const [answers, setAnswers] = useState<Record<number, number>>({})
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
 
   const answeredCount = Object.keys(answers).length
   const allAnswered = answeredCount === ASSESSMENT_QUESTIONS.length
@@ -48,10 +50,28 @@ export function AssessmentFlow() {
     setAnswers({})
   }
 
-  function showResult() {
+  async function showResult() {
+    setSaving(true)
+    setSaveError('')
     const scored = classifyDass(answers)
+    const response = await fetch('/api/assessments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ answers }),
+    }).catch(() => null)
+    setSaving(false)
+    if (!response?.ok) {
+      const payload = response ? await response.json().catch(() => ({})) : {}
+      setSaveError(payload.message || 'Không thể lưu kết quả. Vui lòng thử lại.')
+      return
+    }
+    const persisted = await response.json()
     saveAssessment({
-      id: `MC-${Date.now().toString().slice(-6)}`,
+      id: persisted.id,
+      surveyId: 'DASS-21',
+      surveyVersion: '1.0',
+      source: 'survey',
+      completedAt: new Date().toISOString(),
       name: name.trim(),
       date: new Date().toLocaleDateString('vi-VN'),
       total: scored.total,
@@ -167,13 +187,14 @@ export function AssessmentFlow() {
             </Button>
             <Button
               className="h-11 flex-1"
-              disabled={!allAnswered}
+              disabled={!allAnswered || saving}
               onClick={showResult}
             >
-              {allAnswered ? 'Xem kết quả' : `Còn ${ASSESSMENT_QUESTIONS.length - answeredCount} câu`}
+              {saving ? 'Đang lưu kết quả...' : allAnswered ? 'Xem kết quả' : `Còn ${ASSESSMENT_QUESTIONS.length - answeredCount} câu`}
               <ArrowRight className="size-4" />
             </Button>
           </div>
+          {saveError && <p role="alert" className="rounded-xl border border-danger/30 bg-danger/5 p-3 text-sm font-medium text-danger">{saveError}</p>}
         </div>
       )}
 

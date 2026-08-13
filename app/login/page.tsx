@@ -26,7 +26,10 @@ export default function LoginPage() {
       const data = await response.json()
       setError(data.message || 'Không thể đăng nhập.'); return
     }
-    router.push(role === 'counselor' ? '/counselor' : '/')
+    const data = await response.json()
+    const requestedPath = new URLSearchParams(window.location.search).get('next')
+    const safePath = requestedPath?.startsWith('/') && !requestedPath.startsWith('//') ? requestedPath : undefined
+    router.push(role === 'counselor' ? '/counselor' : !data.profileCompleted ? '/onboarding' : safePath || '/')
     router.refresh()
   }
 
