@@ -25,7 +25,7 @@ export async function PUT(request: Request) {
   try {
     const body = await request.json()
     if (!body.practiceDate) return NextResponse.json({ message: 'Thiếu ngày thực hiện.' }, { status: 400 })
-    const seconds = body.breatheSeconds == null ? null : Math.max(60, Math.min(180, Number(body.breatheSeconds)))
+    const seconds = body.breatheSeconds == null ? null : 60
     const sleepMinutes = body.sleepMinutes == null ? null : Math.max(1, Number(body.sleepMinutes))
     await (await getDb()).request()
       .input('id', sql.UniqueIdentifier, randomUUID()).input('userId', sql.UniqueIdentifier, session.userId).input('date', sql.Date, body.practiceDate)

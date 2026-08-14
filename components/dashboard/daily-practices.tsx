@@ -43,9 +43,9 @@ export function DailyPractices() {
   }, [data.breatheStartedAt, data.breatheCompletedAt])
 
   useEffect(() => {
-    if (!data.breatheStartedAt || data.breatheCompletedAt || breatheElapsed < 180) return
-    const next = { ...data, breatheCompletedAt: new Date().toISOString(), breatheSeconds: 180 }
-    setData(next); localStorage.setItem(storageKey(), JSON.stringify(next)); void persist(next); setMessage('Đã đủ 3 phút. Bài tập hít thở được hoàn thành và lưu tự động.')
+    if (!data.breatheStartedAt || data.breatheCompletedAt || breatheElapsed < 60) return
+    const next = { ...data, breatheCompletedAt: new Date().toISOString(), breatheSeconds: 60 }
+    setData(next); localStorage.setItem(storageKey(), JSON.stringify(next)); void persist(next); setMessage('Đã đủ 1 phút. Bài tập hít thở được hoàn thành và lưu tự động.')
   }, [breatheElapsed, data])
 
   const save = (next: PracticeState, notice: string) => {
@@ -60,7 +60,7 @@ export function DailyPractices() {
   const finishBreathe = () => {
     const seconds = elapsedSeconds(data.breatheStartedAt)
     if (seconds < 60) { setMessage(`Hãy tiếp tục thêm ${60 - seconds} giây để đủ thời gian tối thiểu.`); return }
-    save({ ...data, breatheCompletedAt: new Date().toISOString(), breatheSeconds: Math.min(seconds, 180) }, 'Đã hoàn thành và lưu bài tập hít thở.')
+    save({ ...data, breatheCompletedAt: new Date().toISOString(), breatheSeconds: 60 }, 'Đã hoàn thành và lưu bài tập hít thở.')
   }
   const startSleep = () => save({ ...data, sleepStartedAt: new Date().toISOString(), sleepCompletedAt: undefined, sleepMinutes: undefined }, 'Đã ghi nhận thời gian bắt đầu giấc ngủ.')
   const finishSleep = () => {
@@ -74,7 +74,7 @@ export function DailyPractices() {
     <p className="mt-1 text-xs text-slate-500">Trạng thái được làm mới mỗi ngày lúc 08:00.</p>
     {message && <p role="status" className="mt-3 rounded-xl bg-emerald-50 p-2.5 text-xs font-semibold text-emerald-800">{message}</p>}
     <div className="mt-4 space-y-3">
-      <PracticeCard icon={Wind} title="Hít thở 4–7–8" done={Boolean(data.breatheCompletedAt)} note={data.breatheCompletedAt ? `Đã lưu · ${Math.ceil((data.breatheSeconds || 60) / 60)} phút` : data.breatheStartedAt ? `Đang thực hiện · ${Math.min(breatheElapsed, 180)} giây / 180 giây` : 'Tối thiểu 1 phút, tối đa 3 phút'}>
+      <PracticeCard icon={Wind} title="Hít thở 4–7–8" done={Boolean(data.breatheCompletedAt)} note={data.breatheCompletedAt ? 'Đã lưu · 1 phút' : data.breatheStartedAt ? `Đang thực hiện · ${Math.min(breatheElapsed, 60)} giây / 60 giây` : 'Thời lượng bài tập: 1 phút'}>
         {!data.breatheStartedAt || data.breatheCompletedAt ? <Action onClick={startBreathe} icon={Play} text={data.breatheCompletedAt ? 'Thực hiện lại' : 'Bắt đầu'} /> : <Action onClick={finishBreathe} disabled={breatheElapsed < 60} icon={Check} text="Hoàn thành và lưu" />}
       </PracticeCard>
       <PracticeCard icon={BookOpenText} title="Nhật ký hôm nay" done={Boolean(data.journalCompleted)} note="Có thể nhập tại đây hoặc đánh dấu nếu đã viết bằng giấy bút.">

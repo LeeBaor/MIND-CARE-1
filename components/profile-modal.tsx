@@ -185,7 +185,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                 <div>
                   <label className="block text-slate-500 font-semibold mb-1">Họ và tên</label>
                   <input
-                    type="date"
+                    type="text"
                     disabled={!isEditing}
                     value={userName}
                     onChange={(e) => setUserName(e.target.value)}
@@ -195,7 +195,8 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                 <div>
                   <label className="block text-slate-500 font-semibold mb-1">Số điện thoại</label>
                   <input
-                    type="text"
+                    type="tel"
+                    inputMode="tel"
                     disabled={!isEditing}
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
@@ -215,7 +216,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                 <div>
                   <label className="block text-slate-500 font-semibold mb-1">Ngày sinh</label>
                   <input
-                    type="text"
+                    type="date"
                     disabled={!isEditing}
                     value={dob}
                     onChange={(e) => setDob(e.target.value)}

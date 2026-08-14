@@ -18,3 +18,4 @@ tsconfig.tsbuildinfo
 .DS_Store
 data/mind-care-accounts.json
 work/
+outputs/
