@@ -20,6 +20,7 @@ export type MindBooking = {
   patientName: string
   patientEmail: string
   counselor: string
+  counselorTitle?: string
   specialty: string
   date: string
   time: string

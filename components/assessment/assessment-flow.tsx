@@ -29,10 +29,6 @@ import { saveAssessment } from '@/lib/mind-care-store'
 
 type Step = 'info' | 'quiz' | 'result'
 
-const GRADES = [
-  'Lớp 10A1', 'Lớp 10A2', 'Lớp 11B1', 'Lớp 11B2', 'Lớp 12A1', 'Lớp 12A3',
-]
-
 export function AssessmentFlow() {
   const [step, setStep] = useState<Step>('info')
   const [name, setName] = useState('')
@@ -110,27 +106,11 @@ export function AssessmentFlow() {
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="grade">Lớp</Label>
-              <div className="flex flex-wrap gap-2" id="grade">
-                {GRADES.map((g) => (
-                  <button
-                    key={g}
-                    type="button"
-                    onClick={() => setGrade(g)}
-                    className={cn(
-                      'rounded-lg border px-3 py-2 text-sm font-medium transition-colors',
-                      grade === g
-                        ? 'border-primary bg-primary text-primary-foreground'
-                        : 'border-border bg-card text-muted-foreground hover:border-primary/50',
-                    )}
-                  >
-                    {g}
-                  </button>
-                ))}
-              </div>
+              <Input id="grade" placeholder="Ví dụ: 10A1, 11B2 hoặc tên lớp của bạn" value={grade} onChange={(e) => setGrade(e.target.value)} maxLength={30} />
             </div>
             <Button
               className="mt-2 h-11"
-              disabled={!name.trim() || !grade}
+              disabled={!name.trim() || !grade.trim()}
               onClick={() => setStep('quiz')}
             >
               Tiếp tục <ArrowRight className="size-4" />

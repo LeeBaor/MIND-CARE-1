@@ -12,7 +12,7 @@ export async function GET() {
     const result = await (await getDb()).request().input('id', sql.UniqueIdentifier, current.userId).query('SELECT TOP 1 u.email,u.profile_completed,p.full_name,p.birth_date,p.gender,p.phone,p.school_class,p.emergency_contact FROM users u JOIN profiles p ON p.user_id=u.id WHERE u.id=@id')
     const row = result.recordset[0]
     if (!row) return NextResponse.json({ message: 'Không tìm thấy hồ sơ.' }, { status: 404 })
-    return NextResponse.json({ email: row.email, profileCompleted: row.profile_completed, fullName: row.full_name, birthDate: row.birth_date, gender: row.gender, phone: row.phone, schoolClass: row.school_class, emergencyContact: row.emergency_contact ? JSON.parse(row.emergency_contact) : null })
+    return NextResponse.json({ email: row.email, profileCompleted: row.profile_completed, fullName: row.full_name, birthDate: row.birth_date ? new Date(row.birth_date).toISOString().slice(0, 10) : '', gender: row.gender, phone: row.phone, schoolClass: row.school_class, emergencyContact: row.emergency_contact ? JSON.parse(row.emergency_contact) : null })
   } catch (error) { console.error('[MIND-CARE PROFILE GET]', error); return NextResponse.json({ message: 'Không thể tải hồ sơ.' }, { status: 503 }) }
 }
 

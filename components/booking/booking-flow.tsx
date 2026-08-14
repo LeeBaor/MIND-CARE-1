@@ -1,20 +1,19 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Calendar as CalendarIcon, Clock, User, ChevronDown, Check, ArrowLeft, ArrowRight, ShieldCheck, Heart } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-const TITLES = [
-  'Tất cả chức danh',
-  'PGS.TS - Chuyên gia Cao cấp',
-  'Tiến sĩ - Bác sĩ Chuyên khoa II',
-  'Thạc sĩ Tâm lý Lâm sàng',
-  'Chuyên gia Trị liệu Cận tâm lý',
+const EXPERTS = [
+  { name: 'ThS. Nguyễn Minh An', title: 'Thạc sĩ Tâm lý lâm sàng', specialty: 'CK. Tư vấn Trầm cảm & Lo âu' },
+  { name: 'BS. Trần Thu Hà', title: 'Bác sĩ Chuyên khoa II', specialty: 'CK. Rối loạn Giấc ngủ & Stress' },
+  { name: 'Chuyên gia Lê Gia Hân', title: 'Chuyên gia Trị liệu tâm lý', specialty: 'CK. Tâm lý Học đường & Giới trẻ' },
+  { name: 'Đặng Hiếu', title: 'Chuyên viên Tâm lý học đường', specialty: 'CK. Tâm lý Học đường & Giới trẻ' },
 ]
 
-const DATES = Array.from({ length: 6 }, (_, index) => {
-  const value = new Date()
-  value.setDate(value.getDate() + index + 1)
+const DATES = Array.from({ length: 14 }, (_, index) => {
+  const value = new Date(); value.setDate(value.getDate() + index + 1); return value
+}).filter(value => value.getDay() !== 0 && value.getDay() !== 6).slice(0, 8).map(value => {
   const date = value.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })
   const day = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][value.getDay()]
   return { day, date, year: String(value.getFullYear()), full: value.toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }) }
@@ -33,18 +32,13 @@ const DEPARTMENTS = [
   },
 ]
 
-const TIME_SLOTS = [
-  '06:15', '07:45', '08:00', '09:00',
-  '13:00', '13:45', '15:15', '15:45',
-  '16:15', '16:45',
-]
+const TIME_SLOTS = ['07:30', '08:30', '09:30', '10:30', '13:30', '14:30', '15:30']
 
 export function BookingFlow() {
   const [step, setStep] = useState(2)
-  const [selectedTitle, setSelectedTitle] = useState(TITLES[0])
   const [selectedDate, setSelectedDate] = useState(DATES[0])
   const [selectedSpecialty, setSelectedSpecialty] = useState('CK. Tư vấn Trầm cảm & Lo âu')
-  const [selectedTime, setSelectedTime] = useState('09:00')
+  const [selectedTime, setSelectedTime] = useState('07:30')
   const [selectedCounselor, setSelectedCounselor] = useState('ThS. Nguyễn Minh An')
   const [sessionMode, setSessionMode] = useState<'online' | 'offline'>('online')
   const [patientName, setPatientName] = useState('')
@@ -52,6 +46,17 @@ export function BookingFlow() {
   const [symptoms, setSymptoms] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [bookingError, setBookingError] = useState('')
+  const selectedExpert = useMemo(() => EXPERTS.find(expert => expert.name === selectedCounselor) || EXPERTS[0], [selectedCounselor])
+  const validPhone = /^(0|\+84)[0-9]{9,10}$/.test(patientPhone.replace(/[\s.-]/g, ''))
+
+  useEffect(() => {
+    fetch('/api/profile').then(response => response.ok ? response.json() : Promise.reject()).then(profile => {
+      setPatientName(profile.fullName || '')
+      setPatientPhone(profile.phone || '')
+    }).catch(() => undefined)
+  }, [])
+
+  useEffect(() => { setSelectedSpecialty(selectedExpert.specialty) }, [selectedExpert])
 
   async function confirmBooking() {
     setSubmitting(true)
@@ -61,7 +66,7 @@ export function BookingFlow() {
     const response = await fetch('/api/bookings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ patientName, patientPhone, symptoms, selectedCounselor, selectedSpecialty, mode: sessionMode, scheduledAt: `${year}-${month}-${day}T${selectedTime}:00+07:00` }),
+      body: JSON.stringify({ patientName, patientPhone, symptoms, selectedCounselor, counselorTitle: selectedExpert.title, selectedSpecialty, mode: sessionMode, scheduledAt: `${year}-${month}-${day}T${selectedTime}:00+07:00` }),
     }).catch(() => null)
     setSubmitting(false)
     if (!response?.ok) {
@@ -78,7 +83,7 @@ export function BookingFlow() {
       <div className="rounded-3xl border border-slate-200 bg-white p-4 sm:p-6 shadow-xl">
         {/* Step Indicator Header (1 - 2 - 3 - 4) */}
         <div className="mb-6 flex items-center justify-center gap-2 sm:gap-4">
-          {[1, 2, 3, 4].map((i) => (
+          {[2, 3, 4].map((i) => (
             <div key={i} className="flex items-center">
               <div
                 className={cn(
@@ -105,7 +110,6 @@ export function BookingFlow() {
         </div>
 
         <h2 className="mb-4 text-center font-heading text-xl font-bold text-teal-900">
-          {step === 1 && 'Chọn Chức Danh & Khoa Khám'}
           {step === 2 && 'Đặt lịch theo chuyên khoa'}
           {step === 3 && 'Điền thông tin người khám'}
           {step === 4 && 'Xác nhận phiếu hẹn tư vấn'}
@@ -117,10 +121,7 @@ export function BookingFlow() {
             <div>
               <label className="mb-1 block text-xs font-semibold text-slate-500">Chuyên gia / Thầy cô mong muốn</label>
               <select value={selectedCounselor} onChange={(e) => setSelectedCounselor(e.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 focus:border-teal-600 focus:outline-none">
-                <option>ThS. Nguyễn Minh An</option>
-                <option>BS. Trần Thu Hà</option>
-                <option>Chuyên gia Lê Gia Hân</option>
-                <option>Đặng Hiếu</option>
+                {EXPERTS.map(expert => <option key={expert.name} value={expert.name}>{expert.name}</option>)}
               </select>
               <p className="mt-1 text-[11px] text-slate-500">Chọn chuyên gia phù hợp với nhu cầu của bạn.</p>
             </div>
@@ -134,23 +135,10 @@ export function BookingFlow() {
                 ))}
               </div>
             </div>
-            {/* Title Selector Dropdown */}
+              {/* Chức danh lấy trực tiếp từ hồ sơ chuyên gia đã chọn. */}
             <div>
               <label className="mb-1 block text-xs font-semibold text-slate-500">Chức danh Chuyên gia</label>
-              <div className="relative">
-                <select
-                  value={selectedTitle}
-                  onChange={(e) => setSelectedTitle(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-100 shadow-xs appearance-none"
-                >
-                  {TITLES.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-3 top-3 h-4 w-4 text-slate-400 pointer-events-none" />
-              </div>
+              <div className="rounded-xl border border-teal-200 bg-teal-50 px-4 py-2.5 text-sm font-bold text-teal-800">{selectedExpert.title}</div>
             </div>
 
             {/* Horizontal Date Selector */}
@@ -186,14 +174,11 @@ export function BookingFlow() {
               </div>
 
               <div className="p-3 space-y-2">
-                <div className="bg-emerald-100/70 text-emerald-900 px-3 py-2 rounded-lg font-bold text-xs flex items-center justify-between">
-                  <span>{selectedSpecialty}</span>
-                  <ChevronDown className="h-4 w-4" />
-                </div>
+                <select value={selectedSpecialty} onChange={event => setSelectedSpecialty(event.target.value)} className="w-full rounded-lg bg-emerald-100/70 px-3 py-2 text-xs font-bold text-emerald-900 outline-none">{DEPARTMENTS[0].specialties.map(item => <option key={item.id} value={item.name}>{item.name}</option>)}</select>
 
                 {/* Time Slots Grid */}
                 <div className="pt-2">
-                  <span className="text-xs font-semibold text-slate-500 mb-2 block">Chọn khung giờ khả dụng:</span>
+                  <span className="text-xs font-semibold text-slate-500 mb-2 block">Khung giờ làm việc của phòng tư vấn trường học (Thứ 2–Thứ 6):</span>
                   <div className="grid grid-cols-4 gap-2 sm:grid-cols-4">
                     {TIME_SLOTS.map((t) => {
                       const isSelected = selectedTime === t
@@ -234,11 +219,14 @@ export function BookingFlow() {
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">Số điện thoại liên hệ</label>
               <input
-                type="text"
+                type="tel"
+                inputMode="tel"
+                placeholder="Ví dụ: 0912345678"
                 value={patientPhone}
                 onChange={(e) => setPatientPhone(e.target.value)}
                 className="w-full rounded-xl border border-slate-300 p-2.5 text-sm font-semibold text-slate-800 focus:border-teal-600 focus:outline-none"
               />
+              {patientPhone && !validPhone && <p className="mt-1 text-xs font-semibold text-rose-600">Số điện thoại chưa đúng định dạng Việt Nam.</p>}
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">Mô tả lý do / Trạng thái sức khỏe tinh thần</label>
@@ -282,6 +270,10 @@ export function BookingFlow() {
                 <span className="text-slate-500">Chuyên gia:</span>
                 <span className="font-bold text-slate-800">{selectedCounselor}</span>
               </div>
+              <div className="flex justify-between border-b border-slate-100 pb-1">
+                <span className="text-slate-500">Chức danh:</span>
+                <span className="font-bold text-slate-800">{selectedExpert.title}</span>
+              </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Chuyên khoa:</span>
                 <span className="font-bold text-slate-800">{selectedSpecialty}</span>
@@ -294,10 +286,10 @@ export function BookingFlow() {
         <div className="mt-6 flex items-center justify-between gap-4 pt-4 border-t border-slate-100">
           <button
             onClick={() => setStep((prev) => Math.max(1, prev - 1))}
-            disabled={step === 1}
+            disabled={step === 2}
             className={cn(
               'flex items-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-bold border transition-all',
-              step === 1
+              step === 2
                 ? 'opacity-40 cursor-not-allowed border-slate-200 text-slate-400'
                 : 'border-teal-600 bg-white text-teal-700 hover:bg-teal-50'
             )}
@@ -307,7 +299,7 @@ export function BookingFlow() {
           </button>
 
           <button
-            disabled={submitting || (step === 3 && (!patientName.trim() || !patientPhone.trim() || !selectedCounselor))}
+            disabled={submitting || (step === 3 && (!patientName.trim() || !validPhone || !selectedCounselor))}
             onClick={() => {
               if (step === 3) { void confirmBooking() }
               else if (step < 4) setStep((prev) => prev + 1)

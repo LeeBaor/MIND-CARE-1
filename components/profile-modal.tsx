@@ -46,7 +46,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
       setUserName(profile.fullName || '')
       setEmail(profile.email || '')
       setPhone(profile.phone || '')
-      setDob(profile.birthDate || '')
+      setDob(profile.birthDate ? String(profile.birthDate).slice(0, 10) : '')
       setGender(profile.gender || '')
     }).catch(() => undefined)
   }, [isOpen])
@@ -185,7 +185,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                 <div>
                   <label className="block text-slate-500 font-semibold mb-1">Họ và tên</label>
                   <input
-                    type="text"
+                    type="date"
                     disabled={!isEditing}
                     value={userName}
                     onChange={(e) => setUserName(e.target.value)}
