@@ -1,17 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Calendar as CalendarIcon, Clock, User, ChevronDown, Check, ArrowLeft, ArrowRight, ShieldCheck, Heart } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { saveBooking } from '@/lib/mind-care-store'
 
-const TITLES = [
-  'Tất cả chức danh',
-  'PGS.TS - Chuyên gia Cao cấp',
-  'Tiến sĩ - Bác sĩ Chuyên khoa II',
-  'Thạc sĩ Tâm lý Lâm sàng',
-  'Chuyên gia Trị liệu Cận tâm lý',
-]
+interface ExpertItem {
+  id: string
+  name: string
+  specialty?: string
+  email?: string
+}
 
 const DATES = [
   { day: 'T5', date: '26/06', full: 'Thứ Năm, 26/06/2025' },
@@ -43,17 +42,31 @@ const TIME_SLOTS = [
 
 export function BookingFlow() {
   const [step, setStep] = useState(2)
-  const [selectedTitle, setSelectedTitle] = useState(TITLES[0])
+  const [experts, setExperts] = useState<ExpertItem[]>([])
+  const [loadingExperts, setLoadingExperts] = useState(true)
   const [selectedDate, setSelectedDate] = useState(DATES[0])
   const [selectedSpecialty, setSelectedSpecialty] = useState('CK. Tư vấn Trầm cảm & Lo âu')
   const [selectedTime, setSelectedTime] = useState('09:00')
-  const [selectedCounselor, setSelectedCounselor] = useState('ThS. Nguyễn Minh An')
+  const [selectedCounselor, setSelectedCounselor] = useState('')
   const [sessionMode, setSessionMode] = useState<'online' | 'offline'>('online')
   const [patientName, setPatientName] = useState('')
   const [patientPhone, setPatientPhone] = useState('')
   const [symptoms, setSymptoms] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [bookingError, setBookingError] = useState('')
+
+  useEffect(() => {
+    fetch('/api/experts')
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data: ExpertItem[]) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setExperts(data)
+          setSelectedCounselor(data[0].name)
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoadingExperts(false))
+  }, [])
 
   async function confirmBooking() {
     setSubmitting(true)
@@ -89,7 +102,7 @@ export function BookingFlow() {
 
   return (
     <div className="mx-auto max-w-xl px-2 py-4 sm:px-4">
-      {/* Container Frame styled after Bach Mai App Mobile Window */}
+      {/* Container Frame */}
       <div className="rounded-3xl border border-slate-200 bg-white p-4 sm:p-6 shadow-xl">
         {/* Step Indicator Header (1 - 2 - 3 - 4) */}
         <div className="mb-6 flex items-center justify-center gap-2 sm:gap-4">
@@ -120,25 +133,35 @@ export function BookingFlow() {
         </div>
 
         <h2 className="mb-4 text-center font-heading text-xl font-bold text-teal-900">
-          {step === 1 && 'Chọn Chức Danh & Khoa Khám'}
+          {step === 1 && 'Chọn Khoa Khám & Chuyên Gia'}
           {step === 2 && 'Đặt lịch theo chuyên khoa'}
           {step === 3 && 'Điền thông tin người khám'}
           {step === 4 && 'Xác nhận phiếu hẹn tư vấn'}
         </h2>
 
-        {/* STEP 2: Main Bach Mai Style Selection */}
+        {/* STEP 2: Selection */}
         {step === 2 && (
           <div className="space-y-4">
             <div>
-              <label className="mb-1 block text-xs font-semibold text-slate-500">Chuyên gia / Thầy cô mong muốn</label>
-              <select value={selectedCounselor} onChange={(e) => setSelectedCounselor(e.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 focus:border-teal-600 focus:outline-none">
-                <option>ThS. Nguyễn Minh An</option>
-                <option>BS. Trần Thu Hà</option>
-                <option>Chuyên gia Lê Gia Hân</option>
-                <option>Đặng Hiếu</option>
+              <label className="mb-1 block text-xs font-semibold text-slate-500">Chuyên gia mong muốn</label>
+              <select
+                value={selectedCounselor}
+                onChange={(e) => setSelectedCounselor(e.target.value)}
+                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 focus:border-teal-600 focus:outline-none"
+              >
+                {loadingExperts ? (
+                  <option value="">Đang tải danh sách chuyên gia...</option>
+                ) : (
+                  experts.map((exp) => (
+                    <option key={exp.id || exp.name} value={exp.name}>
+                      {exp.name} {exp.specialty ? `(${exp.specialty})` : ''}
+                    </option>
+                  ))
+                )}
               </select>
-              <p className="mt-1 text-[11px] text-slate-500">Chọn chuyên gia phù hợp với nhu cầu của bạn.</p>
+              <p className="mt-1 text-[11px] text-slate-500">Chọn chuyên gia từ danh sách dữ liệu hệ thống.</p>
             </div>
+
             <div>
               <label className="mb-1 block text-xs font-semibold text-slate-500">Hình thức tham vấn</label>
               <div className="grid grid-cols-2 gap-2">
@@ -147,24 +170,6 @@ export function BookingFlow() {
                     {label}
                   </button>
                 ))}
-              </div>
-            </div>
-            {/* Title Selector Dropdown */}
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-slate-500">Chức danh Chuyên gia</label>
-              <div className="relative">
-                <select
-                  value={selectedTitle}
-                  onChange={(e) => setSelectedTitle(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-100 shadow-xs appearance-none"
-                >
-                  {TITLES.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-3 top-3 h-4 w-4 text-slate-400 pointer-events-none" />
               </div>
             </div>
 
@@ -305,7 +310,7 @@ export function BookingFlow() {
           </div>
         )}
 
-        {/* Bottom Navigation Buttons (Quay lại / Tiếp theo) */}
+        {/* Bottom Navigation Buttons */}
         <div className="mt-6 flex items-center justify-between gap-4 pt-4 border-t border-slate-100">
           <button
             onClick={() => setStep((prev) => Math.max(1, prev - 1))}

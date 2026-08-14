@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils'
 import { ProfileModal } from '@/components/profile-modal'
 
 interface SiteHeaderProps {
-  active?: 'home' | 'assessment' | 'dashboard' | 'booking' | 'ai-assistant' | 'notifications' | 'results'
+  active?: 'home' | 'assessment' | 'dashboard' | 'booking' | 'notifications' | 'results'
 }
 
 export function SiteHeader({ active = 'home' }: SiteHeaderProps) {
@@ -45,14 +45,12 @@ export function SiteHeader({ active = 'home' }: SiteHeaderProps) {
     { key: 'dashboard', label: 'Chức năng', href: '/dashboard' },
     { key: 'booking', label: 'Đặt lịch khám', href: '/booking' },
     { key: 'assessment', label: 'Trắc nghiệm tâm lý', href: '/assessment' },
-    { key: 'ai-assistant', label: 'Trợ lý AI', href: '/ai-assistant' },
     { key: 'results', label: 'Kết quả & Hồ sơ', href: '/results' },
   ]
 
   const counselorNav = [
     { key: 'counselor', label: 'Trang Chuyên viên', href: '/counselor' },
     { key: 'dashboard', label: 'Lịch tư vấn bệnh nhân', href: '/counselor' },
-    { key: 'ai-assistant', label: 'Trợ lý AI', href: '/ai-assistant' },
   ]
 
   const nav = role === 'counselor' ? counselorNav : patientNav

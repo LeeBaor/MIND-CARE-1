@@ -27,7 +27,6 @@ export function SiteFooter() {
           <Link href="/" className="text-slate-600 hover:text-teal-700 font-medium">Trang chủ & Lối tắt</Link>
           <Link href="/booking" className="text-slate-600 hover:text-teal-700 font-medium">Đặt lịch khám chuyên khoa</Link>
           <Link href="/assessment" className="text-slate-600 hover:text-teal-700 font-medium">Trắc nghiệm GAD-7 / PHQ-9</Link>
-          <Link href="/ai-assistant" className="text-slate-600 hover:text-teal-700 font-medium">Trợ lý AI Mind Care 24/7</Link>
           <Link href="/results" className="text-slate-600 hover:text-teal-700 font-medium">Kết quả & Hồ sơ cá nhân</Link>
         </div>
 
