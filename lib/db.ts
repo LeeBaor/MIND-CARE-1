@@ -1,7 +1,6 @@
 import sql from 'mssql'
 
 declare global {
-  // eslint-disable-next-line no-var
   var mindCareSqlPool: Promise<sql.ConnectionPool> | undefined
 }
 

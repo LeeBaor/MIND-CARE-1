@@ -83,7 +83,7 @@ export function BookingFlow() {
       <div className="rounded-3xl border border-slate-200 bg-white p-4 sm:p-6 shadow-xl">
         {/* Step Indicator Header (1 - 2 - 3 - 4) */}
         <div className="mb-6 flex items-center justify-center gap-2 sm:gap-4">
-          {[2, 3, 4].map((i) => (
+          {[2, 3, 4].map((i, index) => (
             <div key={i} className="flex items-center">
               <div
                 className={cn(
@@ -95,7 +95,7 @@ export function BookingFlow() {
                     : 'bg-slate-100 text-slate-400'
                 )}
               >
-                {step > i ? <Check className="h-5 w-5" /> : i}
+                {step > i ? <Check className="h-5 w-5" /> : index + 1}
               </div>
               {i < 4 && (
                 <div

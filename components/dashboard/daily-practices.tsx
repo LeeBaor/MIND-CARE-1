@@ -27,7 +27,7 @@ const elapsedSeconds = (startedAt?: string) => startedAt ? Math.floor((Date.now(
 
 export function DailyPractices() {
   const [data, setData] = useState<PracticeState>({})
-  const [now, setNow] = useState(Date.now())
+  const [now, setNow] = useState(() => Date.now())
   const [message, setMessage] = useState('')
   const breatheElapsed = useMemo(() => data.breatheStartedAt && !data.breatheCompletedAt ? Math.floor((now - new Date(data.breatheStartedAt).getTime()) / 1000) : data.breatheSeconds || 0, [data, now])
 
