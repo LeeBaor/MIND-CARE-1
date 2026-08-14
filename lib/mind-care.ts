@@ -8,7 +8,7 @@ export interface CaseHistory { id: string; studentId: string; author: string; no
 export interface MoodEntry { date: string; mood: number; note?: string }
 
 export const RISK_META: Record<RiskStatus, { label: string; short: string; badge: string; dot: string; description: string }> = {
-  NORMAL: { label: 'Bình thường / Nhẹ', short: 'THEO DÕI', badge: 'bg-success/15 text-success border-success/30', dot: 'bg-success', description: 'Có thể sử dụng tài liệu tự chăm sóc, trợ lý AI và Góc sẻ chia. Hệ thống sẽ nhắc làm lại bài đánh giá định kỳ.' },
+  NORMAL: { label: 'Bình thường / Nhẹ', short: 'THEO DÕI', badge: 'bg-success/15 text-success border-success/30', dot: 'bg-success', description: 'Có thể sử dụng tài liệu tự chăm sóc và Góc sẻ chia. Hệ thống sẽ nhắc làm lại bài đánh giá định kỳ.' },
   NEED_HELP: { label: 'Cần tham vấn', short: 'ƯU TIÊN', badge: 'bg-warning/20 text-warning-foreground border-warning/40', dot: 'bg-warning', description: 'Hệ thống khuyến nghị đăng ký lịch hẹn trực tiếp với chuyên gia tâm lý.' },
   SEVERE: { label: 'Cảnh báo đỏ', short: 'KHẨN CẤP', badge: 'bg-danger/15 text-danger border-danger/30', dot: 'bg-danger', description: 'Cần được chuyên gia tiếp nhận ngay. Tín hiệu cảnh báo đã được đẩy đến Dashboard.' },
 }
@@ -64,7 +64,7 @@ export function classifyDass(answers: Record<number, number>): DassResult {
   const total = depression + anxiety + stress
   if (rank[status] >= 4) return { status, risk: 'SEVERE', route: 3, total, depression, anxiety, stress, advice: 'Kết quả cho thấy em đang có mức nguy cơ rất cao. Chuyên gia đã nhận cảnh báo ưu tiên; nếu em không an toàn, hãy bấm SOS hoặc gọi 111 ngay.' }
   if (rank[status] >= 2) return { status, risk: 'NEED_HELP', route: 2, total, depression, anxiety, stress, advice: 'Em nên đặt lịch tham vấn 1-1 với chuyên gia. Đây là không gian riêng tư để cùng tìm phương án hỗ trợ phù hợp.' }
-  return { status, risk: 'NORMAL', route: 1, total, depression, anxiety, stress, advice: 'Em có thể tiếp tục tự chăm sóc: xem tài liệu, trò chuyện giải tỏa với AI và tham gia Góc sẻ chia bằng ID ẩn danh.' }
+  return { status, risk: 'NORMAL', route: 1, total, depression, anxiety, stress, advice: 'Em có thể tiếp tục tự chăm sóc: xem tài liệu và tham gia Góc sẻ chia bằng ID ẩn danh.' }
 }
 
 // Backward-compatible helper for the dashboard demo.

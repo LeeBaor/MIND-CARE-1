@@ -6,7 +6,7 @@ import {
   X, User, Phone, Mail, Calendar, ShieldCheck, CreditCard, 
   FileText, Pill, Lock, LogOut, Edit3, Heart, CheckCircle2, ChevronRight 
 } from 'lucide-react'
-import { getCarePlans, getClinicalRecords, type CarePlan, type ClinicalRecord } from '@/lib/mind-care-store'
+import { type CarePlan, type ClinicalRecord } from '@/lib/mind-care-store'
 
 interface ProfileModalProps {
   isOpen: boolean
@@ -41,10 +41,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     if (cookies.user_role === 'counselor') setRole('counselor')
     if (cookies.user_name) setUserName(cookies.user_name)
     if (cookies.user_email) setEmail(cookies.user_email)
-    if (cookies.user_name) {
-      setRecords(getClinicalRecords().filter((item) => item.patientName === cookies.user_name))
-      setCarePlans(getCarePlans().filter((item) => item.patientName === cookies.user_name))
-    }
+    fetch('/api/care').then((response) => response.ok ? response.json() : Promise.reject()).then((care) => { setRecords(care.records || []); setCarePlans(care.plans || []) }).catch(() => { setRecords([]); setCarePlans([]) })
     fetch('/api/profile').then((response) => response.ok ? response.json() : Promise.reject()).then((profile) => {
       setUserName(profile.fullName || '')
       setEmail(profile.email || '')

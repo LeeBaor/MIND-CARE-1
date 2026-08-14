@@ -13,6 +13,7 @@ export default function RegisterPage() {
     email: '',
     password: '',
     confirmPassword: '',
+    inviteCode: '',
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -104,6 +105,11 @@ export default function RegisterPage() {
               />
             </div>
           </div>
+
+          {role === 'counselor' && <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5 ml-1">Mã mời chuyên viên</label>
+            <div className="relative"><ShieldCheck className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" /><input type="password" required value={formData.inviteCode} onChange={(e) => setFormData({ ...formData, inviteCode: e.target.value })} className="w-full bg-slate-50 border border-slate-300 rounded-xl px-10 py-2.5 text-xs sm:text-sm font-medium text-slate-800 focus:outline-none focus:border-teal-600 focus:bg-white" placeholder="Nhập mã do quản trị viên cung cấp" /></div>
+          </div>}
 
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5 ml-1">Email liên hệ</label>

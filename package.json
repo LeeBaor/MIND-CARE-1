@@ -1,5 +1,5 @@
 {
-  "name": "my-project",
+  "name": "mindcare",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -7,6 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
+    "typecheck": "tsc --noEmit --pretty false",
+    "check": "npm run typecheck && npm run build",
+    "setup": "npm install && npm run db:migrate && npm run build",
     "db:migrate": "node --env-file=.env.local scripts/migrate.mjs"
   },
   "dependencies": {

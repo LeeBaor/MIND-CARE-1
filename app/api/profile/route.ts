@@ -29,6 +29,6 @@ export async function PATCH(request: Request) {
       await new sql.Request(transaction).input('id', sql.UniqueIdentifier, current.userId).query('UPDATE users SET profile_completed=1,updated_at=SYSUTCDATETIME() WHERE id=@id')
       await transaction.commit()
     } catch (error) { await transaction.rollback(); throw error }
-    const response = NextResponse.json({ success: true }); response.cookies.set('user_name', body.fullName.trim(), { httpOnly: false, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', path: '/', maxAge: 28800 }); return response
+    const response = NextResponse.json({ success: true }); response.cookies.set('user_name', body.fullName.trim(), { httpOnly: false, sameSite: 'lax', secure: process.env.COOKIE_SECURE === 'true', path: '/', maxAge: 28800 }); return response
   } catch (error) { console.error('[MIND-CARE PROFILE PATCH]', error); return NextResponse.json({ message: 'Không thể cập nhật hồ sơ.' }, { status: 503 }) }
 }

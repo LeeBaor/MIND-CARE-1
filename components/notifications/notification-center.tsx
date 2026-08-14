@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AlertCircle, Bell, Calendar, Check, Clock, MoreVertical, Pill, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { getBookings, getCarePlans } from '@/lib/mind-care-store'
+import { type CarePlan, type MindBooking } from '@/lib/mind-care-store'
 
 type Category = 'Tất cả' | 'Lịch khám' | 'Y tế' | 'Hệ thống'
 
@@ -26,11 +26,13 @@ export function NotificationCenter() {
   const [activeTab, setActiveTab] = useState<Category>('Tất cả')
   const [items, setItems] = useState<NotificationItem[]>([])
 
-  useEffect(() => {
+  useEffect(() => { void (async () => {
     const name = decodeURIComponent(getCookie('user_name'))
     const role = getCookie('user_role')
-    const bookings = getBookings()
-    const plans = getCarePlans()
+    const [bookingResponse, careResponse] = await Promise.all([fetch('/api/bookings'), fetch('/api/care')])
+    const bookings: MindBooking[] = bookingResponse.ok ? await bookingResponse.json() : []
+    const care = careResponse.ok ? await careResponse.json() : { plans: [] }
+    const plans: CarePlan[] = care.plans || []
     const ownBookings = role === 'counselor'
       ? bookings.filter((item) => item.counselor === name)
       : bookings.filter((item) => item.patientName === name)
@@ -75,7 +77,7 @@ export function NotificationCenter() {
         iconBg: 'bg-amber-100 text-amber-700',
       },
     ])
-  }, [])
+  })() }, [])
 
   const filteredItems = useMemo(() => items.filter((item) => {
     const matchTab = activeTab === 'Tất cả' || item.category === activeTab

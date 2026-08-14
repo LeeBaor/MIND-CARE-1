@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import jsPDF from 'jspdf'
 import { BarChart3, Calendar, Download, FileText, ShieldCheck, Star, TrendingUp } from 'lucide-react'
 import { SiteHeader } from '@/components/site-header'
 import { SiteFooter } from '@/components/site-footer'
@@ -23,7 +22,8 @@ export default function ResultsPage() {
   const latest = records[0]
   const average = useMemo(() => records.length ? Math.round(records.reduce((sum, item) => sum + item.total, 0) / records.length) : 0, [records])
 
-  function exportPdf() {
+  async function exportPdf() {
+    const { default: jsPDF } = await import('jspdf')
     const pdf = new jsPDF()
     pdf.setFontSize(18)
     pdf.text('MIND CARE - BAO CAO DANH GIA TAM LY', 18, 22)
@@ -69,7 +69,7 @@ export default function ResultsPage() {
                 <Score label="Stress" score={latest.stress} />
               </div>
               <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-3 text-xs leading-relaxed text-emerald-950">
-                <strong>Nguồn kết quả:</strong> bài sàng lọc {latest.surveyId || 'DASS-21'} phiên bản {latest.surveyVersion || '1.0'}, hoàn thành ngày {latest.date}. Kết quả được tính trực tiếp từ câu trả lời của bạn, không do trợ lý AI tự tạo.
+                <strong>Nguồn kết quả:</strong> bài sàng lọc {latest.surveyId || 'DASS-21'} phiên bản {latest.surveyVersion || '1.0'}, hoàn thành ngày {latest.date}. Kết quả được tính trực tiếp từ câu trả lời của bạn.
               </div>
               <p className="mt-4 rounded-2xl bg-emerald-50 p-3 text-xs leading-relaxed text-emerald-950">Kết quả là thông tin sàng lọc ban đầu. Bạn có thể đặt lịch để được chuyên gia trao đổi riêng tư và xây dựng kế hoạch hỗ trợ phù hợp.</p>
             </section>

@@ -1,13 +1,11 @@
 'use client';
 
 import { FileSpreadsheet, FileText } from 'lucide-react';
-import * as XLSX from 'xlsx';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 export function ExportButtons() {
   // Xuất Excel
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
+    const XLSX = await import('xlsx');
     const data = [
       { ID: 'HS001', Ten: 'Nguyễn Văn A', Lop: '10A1', MucDo: 'Rất nặng' },
       { ID: 'HS002', Ten: 'Trần Thị B', Lop: '11B2', MucDo: 'Vừa' },
@@ -22,6 +20,10 @@ export function ExportButtons() {
   const exportToPDF = async () => {
     const element = document.getElementById('dashboard-content');
     if (!element) return;
+    const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+      import('html2canvas'),
+      import('jspdf'),
+    ]);
     const canvas = await html2canvas(element);
     const imgData = canvas.toDataURL('image/png');
     

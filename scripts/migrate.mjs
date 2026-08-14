@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises'
+import { readFile, readdir } from 'node:fs/promises'
 import process from 'node:process'
 import sql from 'mssql'
 
@@ -19,11 +19,12 @@ let pool
 try {
   pool = await sql.connect(config)
   await pool.request().query("IF OBJECT_ID('mindcare_migrations','U') IS NULL CREATE TABLE mindcare_migrations(name nvarchar(255) PRIMARY KEY,applied_at datetime2 NOT NULL DEFAULT SYSUTCDATETIME())")
-  const name = '0001_mindcare.sql'
-  const existing = await pool.request().input('name', sql.NVarChar(255), name).query('SELECT name FROM mindcare_migrations WHERE name=@name')
-  if (existing.recordset.length) console.log(`${name} đã được áp dụng.`)
-  else {
-    const migration = await readFile(new URL(`../database/migrations/${name}`, import.meta.url), 'utf8')
+  const directory = new URL('../database/migrations/', import.meta.url)
+  const names = (await readdir(directory)).filter((name) => /^\d+.*\.sql$/.test(name)).sort()
+  for (const name of names) {
+    const existing = await pool.request().input('name', sql.NVarChar(255), name).query('SELECT name FROM mindcare_migrations WHERE name=@name')
+    if (existing.recordset.length) { console.log(`${name} đã được áp dụng.`); continue }
+    const migration = await readFile(new URL(name, directory), 'utf8')
     const transaction = new sql.Transaction(pool); await transaction.begin()
     try { await new sql.Request(transaction).batch(migration); await new sql.Request(transaction).input('name', sql.NVarChar(255), name).query('INSERT INTO mindcare_migrations(name) VALUES(@name)'); await transaction.commit(); console.log(`Đã áp dụng ${name}.`) }
     catch (error) { await transaction.rollback(); throw error }

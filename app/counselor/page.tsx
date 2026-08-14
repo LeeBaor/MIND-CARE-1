@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { Bell, Calendar, CheckCircle2, ClipboardList, FileText, Pill, Send, UserRound } from 'lucide-react'
 import { SiteHeader } from '@/components/site-header'
 import { SiteFooter } from '@/components/site-footer'
-import { getBookings, saveCarePlan, saveClinicalRecord, updateBooking, type MindBooking } from '@/lib/mind-care-store'
+import { type MindBooking } from '@/lib/mind-care-store'
 
 export default function CounselorPage() {
   const [bookings, setBookings] = useState<MindBooking[]>([])
@@ -15,22 +15,23 @@ export default function CounselorPage() {
   const [notes, setNotes] = useState('Thực hiện 10 phút trước khi ngủ. Ghi lại cảm xúc và mức độ căng thẳng.')
   const [message, setMessage] = useState('')
 
-  const refresh = () => {
-    const doctor = document.cookie.split('; ').find((value) => value.startsWith('user_name='))?.split('=')[1] || ''
-    setBookings(getBookings().filter((item) => item.counselor === doctor))
+  const refresh = async () => {
+    const response = await fetch('/api/bookings')
+    if (response.ok) setBookings(await response.json())
   }
-  useEffect(() => { refresh() }, [])
+  useEffect(() => { void refresh() }, [])
 
-  function completeVisit() {
+  async function completeVisit() {
     if (!selected) return
+    const response = await fetch('/api/bookings', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookingId: selected.id, summary }) })
+    if (!response.ok) { const data=await response.json().catch(()=>({})); setMessage(data.message||'Không thể hoàn tất buổi khám.'); return }
     const completed = { ...selected, status: 'completed' as const }
-    updateBooking(completed)
-    saveClinicalRecord({ id: `HS-${Date.now().toString().slice(-6)}`, bookingId: selected.id, patientName: selected.patientName, counselor: selected.counselor, completedAt: new Date().toLocaleDateString('vi-VN'), summary })
-    setSelected(completed); refresh(); setMessage(`Đã cập nhật lịch sử khám cho ${selected.patientName}.`)
+    setSelected(completed); await refresh(); setMessage(`Đã cập nhật lịch sử khám cho ${selected.patientName}.`)
   }
-  function releasePlan() {
+  async function releasePlan() {
     if (!selected || selected.status !== 'completed') return
-    saveCarePlan({ id: `DT-${Date.now().toString().slice(-6)}`, patientName: selected.patientName, counselor: selected.counselor, kind, title, notes, releasedAt: new Date().toLocaleDateString('vi-VN') })
+    const response = await fetch('/api/care', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookingId: selected.id, kind, title, notes }) })
+    if (!response.ok) { const data=await response.json().catch(()=>({})); setMessage(data.message||'Không thể phát hành kế hoạch.'); return }
     setMessage(`Đã phát hành ${kind === 'exercise' ? 'bài tập trị liệu' : 'đơn thuốc'} cho ${selected.patientName}.`)
   }
 

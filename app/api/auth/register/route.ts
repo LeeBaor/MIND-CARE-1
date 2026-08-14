@@ -2,10 +2,13 @@ import { NextResponse } from 'next/server'
 import { registerAccount } from '@/lib/auth-store'
 
 export async function POST(request: Request) {
-  const { name, email, password, role } = await request.json().catch(() => ({}))
+  const { name, email, password, role, inviteCode } = await request.json().catch(() => ({}))
   if (!name?.trim() || !email?.trim() || !password) return NextResponse.json({ message: 'Vui lòng điền đầy đủ thông tin.' }, { status: 400 })
   if (password.length < 8) return NextResponse.json({ message: 'Mật khẩu cần có ít nhất 8 ký tự.' }, { status: 400 })
   const normalizedRole = role === 'counselor' ? 'counselor' : 'student'
+  if (normalizedRole === 'counselor' && (!process.env.EXPERT_REGISTRATION_CODE || inviteCode !== process.env.EXPERT_REGISTRATION_CODE)) {
+    return NextResponse.json({ message: 'Mã mời chuyên viên không hợp lệ.' }, { status: 403 })
+  }
 
   try {
     if (!await registerAccount(name, email, password, normalizedRole)) return NextResponse.json({ message: 'Email này đã được đăng ký.' }, { status: 409 })

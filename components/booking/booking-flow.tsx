@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { Calendar as CalendarIcon, Clock, User, ChevronDown, Check, ArrowLeft, ArrowRight, ShieldCheck, Heart } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { saveBooking } from '@/lib/mind-care-store'
 
 const TITLES = [
   'Tất cả chức danh',
@@ -13,14 +12,13 @@ const TITLES = [
   'Chuyên gia Trị liệu Cận tâm lý',
 ]
 
-const DATES = [
-  { day: 'T5', date: '26/06', full: 'Thứ Năm, 26/06/2025' },
-  { day: 'T6', date: '27/06', full: 'Thứ Sáu, 27/06/2025' },
-  { day: 'T7', date: '28/06', full: 'Thứ Bảy, 28/06/2025' },
-  { day: 'CN', date: '29/06', full: 'Chủ Nhật, 29/06/2025' },
-  { day: 'T2', date: '30/06', full: 'Thứ Hai, 30/06/2025' },
-  { day: 'T3', date: '01/07', full: 'Thứ Ba, 01/07/2025' },
-]
+const DATES = Array.from({ length: 6 }, (_, index) => {
+  const value = new Date()
+  value.setDate(value.getDate() + index + 1)
+  const date = value.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })
+  const day = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][value.getDay()]
+  return { day, date, year: String(value.getFullYear()), full: value.toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }) }
+})
 
 const DEPARTMENTS = [
   {
@@ -58,9 +56,8 @@ export function BookingFlow() {
   async function confirmBooking() {
     setSubmitting(true)
     setBookingError('')
-    const [day, month, year] = selectedDate.date.split('/').length === 2
-      ? [selectedDate.date.split('/')[0], selectedDate.date.split('/')[1], String(new Date().getFullYear())]
-      : selectedDate.date.split('/')
+    const [day, month] = selectedDate.date.split('/')
+    const year = selectedDate.year
     const response = await fetch('/api/bookings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -72,18 +69,6 @@ export function BookingFlow() {
       setBookingError(payload.message || 'Không thể đặt lịch. Vui lòng thử lại.')
       return
     }
-    const persisted = await response.json()
-    saveBooking({
-      id: persisted.bookingId,
-      patientName: patientName.trim(),
-      patientEmail: document.cookie.split('; ').find((value) => value.startsWith('user_email='))?.split('=')[1] || '',
-      counselor: selectedCounselor,
-      specialty: selectedSpecialty,
-      date: selectedDate.full,
-      time: selectedTime,
-      mode: sessionMode,
-      status: 'upcoming',
-    })
     setStep(4)
   }
 

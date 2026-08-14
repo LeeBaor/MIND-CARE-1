@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     const expiresAt = Date.now() + maxAge * 1000
     const sessionToken = await createSessionToken({ userId: account.id, email: account.email, role: normalizedRole, expiresAt })
     const response = NextResponse.json({ success: true, role: normalizedRole, anonymousId: studentAnonymousId, profileCompleted: account.profileCompleted })
-    const common = { sameSite: 'lax' as const, secure: process.env.NODE_ENV === 'production', path: '/', maxAge }
+    const common = { sameSite: 'lax' as const, secure: process.env.COOKIE_SECURE === 'true', path: '/', maxAge }
     response.cookies.set('auth_session', sessionToken, { ...common, httpOnly: true })
     response.cookies.set('is_logged_in', 'true', { ...common, httpOnly: false })
     response.cookies.set('user_role', normalizedRole, { ...common, httpOnly: false })
