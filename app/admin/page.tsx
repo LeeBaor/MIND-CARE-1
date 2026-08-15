@@ -9,7 +9,6 @@ import {
   Users,
   Stethoscope,
   CalendarDays,
-  Lock,
   Mail,
   Phone,
   Plus,
@@ -171,7 +170,7 @@ export default function AdminPage() {
           )}
 
           {/* Stats Overview */}
-          <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="rounded-3xl border border-teal-200 bg-white p-5 shadow-xs flex items-center justify-between">
               <div>
                 <span className="text-xs font-bold text-slate-500 block">Tổng Bác sĩ / Chuyên gia</span>
@@ -189,16 +188,6 @@ export default function AdminPage() {
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
                 <CalendarDays className="h-6 w-6" />
-              </div>
-            </div>
-
-            <div className="rounded-3xl border border-teal-200 bg-white p-5 shadow-xs flex items-center justify-between">
-              <div>
-                <span className="text-xs font-bold text-slate-500 block">Quyền Hạn Đăng Nhập</span>
-                <strong className="text-2xl font-extrabold text-teal-900 mt-1 block">Khóa Đăng Ký Tự Do</strong>
-              </div>
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
-                <Lock className="h-6 w-6" />
               </div>
             </div>
           </section>
