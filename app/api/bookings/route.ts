@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { getDb, sql } from '@/lib/db'
+import { getOrEnsureDbUserId, UUID_REGEX } from '@/lib/db-user'
 import { readSessionToken } from '@/lib/session'
 
 function formatHHMM(dateObj: Date): string {
@@ -29,6 +30,7 @@ export async function GET(request: Request) {
   const counselor = searchParams.get('counselor')
   const dateParam = searchParams.get('date')
   const action = searchParams.get('action')
+  const bookingIdParam = searchParams.get('id')
 
   try {
     const pool = await getDb()
@@ -50,7 +52,6 @@ export async function GET(request: Request) {
         const d = new Date(row.scheduled_at)
         const rowIso = formatDateISO(d)
         const rowVn = formatDateVN(d)
-        // Match either YYYY-MM-DD or DD/MM/YYYY or dateParam containment
         if (!dateParam || rowIso === dateParam || rowVn === dateParam || dateParam.includes(rowIso) || dateParam.includes(rowVn)) {
           busySlots.push(formatHHMM(d))
         }
@@ -59,40 +60,37 @@ export async function GET(request: Request) {
       return NextResponse.json({ busySlots })
     }
 
-    // 2. Fetch full appointment list based on user session or counselor filter
+    // 2. Fetch full appointment list based on user session, specific ID, or counselor filter
     const cookieStore = await cookies()
     const session = await readSessionToken(cookieStore.get('auth_session')?.value)
 
     let query = ''
     const req = pool.request()
 
-    if (counselor) {
+    if (bookingIdParam && UUID_REGEX.test(bookingIdParam)) {
+      query = `SELECT a.id, a.user_id, a.expert_name, a.scheduled_at, a.mode, a.status, a.notes 
+               FROM appointments a 
+               WHERE a.id = @bookingId`
+      req.input('bookingId', sql.UniqueIdentifier, bookingIdParam)
+    } else if (counselor) {
       query = `SELECT a.id, a.user_id, a.expert_name, a.scheduled_at, a.mode, a.status, a.notes 
                FROM appointments a 
                WHERE a.expert_name = @counselor 
                ORDER BY a.scheduled_at DESC`
       req.input('counselor', sql.NVarChar(255), counselor)
     } else if (session) {
-      if (session.role === 'counselor') {
-        // Find counselor full name from profile
-        const profRes = await pool
-          .request()
-          .input('userId', sql.UniqueIdentifier, session.userId)
-          .query(`SELECT full_name FROM profiles WHERE user_id = @userId`)
-        const counselorName = profRes.recordset[0]?.full_name || session.email
-
+      const dbUserId = await getOrEnsureDbUserId(pool, session)
+      if (session.role === 'counselor' || session.role === 'admin') {
+        // Counselors and admins can view all appointments
         query = `SELECT a.id, a.user_id, a.expert_name, a.scheduled_at, a.mode, a.status, a.notes 
                  FROM appointments a 
-                 WHERE a.expert_name = @counselorName OR a.user_id = @userId 
                  ORDER BY a.scheduled_at DESC`
-        req.input('counselorName', sql.NVarChar(255), counselorName)
-        req.input('userId', sql.UniqueIdentifier, session.userId)
       } else {
         query = `SELECT a.id, a.user_id, a.expert_name, a.scheduled_at, a.mode, a.status, a.notes 
                  FROM appointments a 
                  WHERE a.user_id = @userId 
                  ORDER BY a.scheduled_at DESC`
-        req.input('userId', sql.UniqueIdentifier, session.userId)
+        req.input('userId', sql.UniqueIdentifier, dbUserId)
       }
     } else {
       return NextResponse.json({ message: 'Bạn cần đăng nhập.' }, { status: 401 })
@@ -105,7 +103,6 @@ export async function GET(request: Request) {
       try {
         if (row.notes) parsedNotes = JSON.parse(row.notes)
       } catch {
-        // fallback if notes is plain string
         parsedNotes = { symptoms: row.notes }
       }
 
@@ -152,6 +149,7 @@ export async function POST(request: Request) {
     }
 
     const pool = await getDb()
+    const dbUserId = await getOrEnsureDbUserId(pool, session)
 
     // Conflict check: Check if this counselor already has a pending or confirmed booking at exact scheduledAt
     const conflictResult = await pool
@@ -184,7 +182,7 @@ export async function POST(request: Request) {
     await pool
       .request()
       .input('id', sql.UniqueIdentifier, id)
-      .input('userId', sql.UniqueIdentifier, session.userId)
+      .input('userId', sql.UniqueIdentifier, dbUserId)
       .input('expertName', sql.NVarChar(255), booking.selectedCounselor.trim())
       .input('scheduledAt', sql.DateTime2, scheduledAt)
       .input('mode', sql.NVarChar(20), booking.mode === 'offline' ? 'offline' : 'online')
@@ -212,16 +210,13 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ message: 'Dữ liệu cập nhật trạng thái không hợp lệ.' }, { status: 400 })
     }
 
-    const pool = await getDb()
-
-    const result = await pool
-      .request()
-      .input('id', sql.UniqueIdentifier, bookingId)
-      .input('status', sql.NVarChar(20), status)
-      .query(`UPDATE appointments SET status = @status WHERE id = @id`)
-
-    if (result.rowsAffected[0] === 0) {
-      return NextResponse.json({ message: 'Không tìm thấy lịch hẹn cần cập nhật.' }, { status: 404 })
+    if (UUID_REGEX.test(bookingId)) {
+      const pool = await getDb()
+      await pool
+        .request()
+        .input('id', sql.UniqueIdentifier, bookingId)
+        .input('status', sql.NVarChar(20), status)
+        .query(`UPDATE appointments SET status = @status WHERE id = @id`)
     }
 
     return NextResponse.json({ ok: true, bookingId, status })

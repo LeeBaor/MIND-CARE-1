@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Calendar as CalendarIcon, Clock, User, ChevronDown, Check, ArrowLeft, ArrowRight, ShieldCheck, Heart, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { saveBooking } from '@/lib/mind-care-store'
+import { getDoctors, saveBooking } from '@/lib/mind-care-store'
 
 interface ExpertItem {
   id: string
@@ -86,12 +86,31 @@ export function BookingFlow() {
     setDates(generatedDates)
     setSelectedDate(generatedDates[0])
 
+    // Load initial doctor list from local store (includes default & admin-created doctors)
+    const localDocs: ExpertItem[] = getDoctors().map((d) => ({
+      id: d.id,
+      name: d.name,
+      specialty: d.specialty,
+      email: d.email,
+    }))
+
+    if (localDocs.length > 0) {
+      setExperts(localDocs)
+      setSelectedCounselor(localDocs[0].name)
+    }
+
     fetch('/api/experts')
       .then((res) => (res.ok ? res.json() : []))
-      .then((data: ExpertItem[]) => {
-        if (Array.isArray(data) && data.length > 0) {
-          setExperts(data)
-          setSelectedCounselor(data[0].name)
+      .then((apiData: ExpertItem[]) => {
+        if (Array.isArray(apiData) && apiData.length > 0) {
+          const combined = [...localDocs]
+          apiData.forEach((exp) => {
+            if (!combined.some((e) => e.name.trim().toLowerCase() === exp.name.trim().toLowerCase())) {
+              combined.push(exp)
+            }
+          })
+          setExperts(combined)
+          setSelectedCounselor((prev) => prev || combined[0].name)
         }
       })
       .catch(() => {})
@@ -203,6 +222,46 @@ export function BookingFlow() {
           {step === 4 && 'Xác nhận phiếu hẹn tư vấn'}
         </h2>
 
+        {/* STEP 1: Choose Doctor Cards */}
+        {step === 1 && (
+          <div className="space-y-3">
+            <p className="text-xs text-slate-500 text-center mb-2">Vui lòng chọn bác sĩ / chuyên gia tư vấn phù hợp:</p>
+            <div className="grid grid-cols-1 gap-3 max-h-80 overflow-y-auto pr-1">
+              {experts.map((exp) => (
+                <div
+                  key={exp.id || exp.name}
+                  onClick={() => {
+                    setSelectedCounselor(exp.name)
+                    setStep(2)
+                  }}
+                  className={cn(
+                    'cursor-pointer rounded-2xl border p-4 transition-all hover:border-teal-500 hover:shadow-md flex items-center justify-between',
+                    selectedCounselor === exp.name
+                      ? 'border-teal-600 bg-teal-50/70 ring-2 ring-teal-200'
+                      : 'border-slate-200 bg-white'
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-teal-600 text-white font-extrabold text-xs shrink-0">
+                      BS
+                    </div>
+                    <div>
+                      <strong className="block text-sm font-bold text-slate-900">{exp.name}</strong>
+                      <span className="text-xs text-teal-700 font-semibold">{exp.specialty || 'Tư vấn Sức khỏe Tinh thần'}</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="rounded-xl bg-teal-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-teal-700"
+                  >
+                    Chọn
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* STEP 2: Selection */}
         {step === 2 && (
           <div className="space-y-4">
@@ -213,14 +272,16 @@ export function BookingFlow() {
                 onChange={(e) => setSelectedCounselor(e.target.value)}
                 className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 focus:border-teal-600 focus:outline-none"
               >
-                {loadingExperts ? (
+                {loadingExperts && experts.length === 0 ? (
                   <option value="">Đang tải danh sách chuyên gia...</option>
-                ) : (
+                ) : experts.length > 0 ? (
                   experts.map((exp) => (
                     <option key={exp.id || exp.name} value={exp.name}>
                       {exp.name} {exp.specialty ? `(${exp.specialty})` : ''}
                     </option>
                   ))
+                ) : (
+                  <option value="ThS. Nguyễn Minh An">ThS. Nguyễn Minh An (Tham vấn Lo âu & Trầm cảm)</option>
                 )}
               </select>
               <p className="mt-1 text-[11px] text-slate-500">Chọn chuyên gia từ danh sách dữ liệu hệ thống.</p>

@@ -17,13 +17,6 @@ export async function POST(request: Request) {
         account = { id: 'admin-001', email: 'admin@mindcare.vn', name: 'Quản trị viên Hệ thống', profileCompleted: true, role: 'admin' }
       } else if ((cleanEmail === 'chuyenvien@mindcare.vn' || cleanEmail === 'bacsi@mindcare.vn') && password === '123456') {
         account = { id: 'doc-001', email: cleanEmail, name: 'ThS. Nguyễn Minh An', profileCompleted: true, role: 'counselor' }
-      } else if (password && password.length >= 4) {
-        // Fallback for standard patient login
-        let fallbackRole: Role = 'student'
-        if (cleanEmail.includes('admin')) fallbackRole = 'admin'
-        else if (cleanEmail.includes('chuyenvien') || cleanEmail.includes('bacsi') || cleanEmail.includes('doctor')) fallbackRole = 'counselor'
-
-        account = { id: `usr-${Date.now()}`, email: cleanEmail, name: cleanEmail.split('@')[0] || 'Người dùng Mind Care', profileCompleted: true, role: fallbackRole }
       }
     }
 

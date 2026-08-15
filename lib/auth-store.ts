@@ -116,8 +116,11 @@ export async function verifyAccount(email: string, password: string) {
   return undefined
 }
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export async function changePassword(userId: string, currentPassword: string, newPassword: string) {
   try {
+    if (!UUID_REGEX.test(userId)) return false
     const pool = await getDb()
     const result = await pool.request().input('id', sql.UniqueIdentifier, userId).query('SELECT TOP 1 password_hash FROM users WHERE id=@id')
     const account = result.recordset[0]

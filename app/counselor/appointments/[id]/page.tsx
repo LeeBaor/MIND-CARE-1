@@ -26,11 +26,11 @@ export default function CounselorAppointmentDetailPage() {
     if (!bookingId) return
 
     try {
-      const res = await fetch('/api/bookings')
+      const res = await fetch(`/api/bookings?id=${encodeURIComponent(bookingId)}`)
       if (res.ok) {
-        const data: MindBooking[] = await res.json()
-        const found = data.find((b) => b.id === bookingId)
-        if (found) {
+        const data = await res.json()
+        const found = Array.isArray(data) ? data.find((b: MindBooking) => b.id === bookingId) : data
+        if (found && found.id) {
           setBooking(found)
           setLoading(false)
           return
