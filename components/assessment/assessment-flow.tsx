@@ -208,7 +208,12 @@ export function AssessmentFlow() {
             <CardContent className="flex flex-col gap-4 py-6">
               <div className="flex gap-3 rounded-xl bg-teal-50/80 p-4 border border-teal-100">
                 <Lightbulb className="mt-0.5 size-5 shrink-0 text-teal-600" />
-                <p className="text-sm leading-relaxed text-slate-800">{result.advice}</p>
+                <div className="space-y-1 text-sm text-slate-800 leading-relaxed">
+                  <p>{result.advice}</p>
+                  <p className="text-xs text-teal-900 font-semibold pt-1 border-t border-teal-200/60">
+                    💡 <strong>Lưu ý:</strong> Điểm trắc nghiệm này là thông tin sàng lọc ban đầu. Hồ sơ chẩn đoán chính thức & đơn thuốc/bài tập trị liệu sẽ do Bác sĩ/Chuyên gia trực tiếp trả về cho bạn trong phần <Link href="/results" className="underline font-bold text-teal-700 hover:text-teal-900 font-extrabold">"Kết quả & Hồ sơ"</Link> sau buổi khám.
+                  </p>
+                </div>
               </div>
 
               <div className="grid grid-cols-3 gap-2 text-center text-xs">

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Calendar as CalendarIcon, Clock, User, ChevronDown, Check, ArrowLeft, ArrowRight, ShieldCheck, Heart } from 'lucide-react'
+import { Calendar as CalendarIcon, Clock, User, ChevronDown, Check, ArrowLeft, ArrowRight, ShieldCheck, Heart, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { saveBooking } from '@/lib/mind-care-store'
 
@@ -12,14 +12,37 @@ interface ExpertItem {
   email?: string
 }
 
-const DATES = [
-  { day: 'T5', date: '26/06', full: 'Thứ Năm, 26/06/2025' },
-  { day: 'T6', date: '27/06', full: 'Thứ Sáu, 27/06/2025' },
-  { day: 'T7', date: '28/06', full: 'Thứ Bảy, 28/06/2025' },
-  { day: 'CN', date: '29/06', full: 'Chủ Nhật, 29/06/2025' },
-  { day: 'T2', date: '30/06', full: 'Thứ Hai, 30/06/2025' },
-  { day: 'T3', date: '01/07', full: 'Thứ Ba, 01/07/2025' },
-]
+interface DateOption {
+  day: string
+  date: string
+  full: string
+  isoDate: string
+}
+
+function getDynamicDates(): DateOption[] {
+  const daysOfWeek = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
+  const fullDays = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy']
+  const result: DateOption[] = []
+  const today = new Date()
+
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(today)
+    d.setDate(today.getDate() + i)
+    const dayOfWeek = daysOfWeek[d.getDay()]
+    const fullDayOfWeek = fullDays[d.getDay()]
+    const dd = d.getDate().toString().padStart(2, '0')
+    const mm = (d.getMonth() + 1).toString().padStart(2, '0')
+    const yyyy = d.getFullYear()
+    
+    result.push({
+      day: dayOfWeek,
+      date: `${dd}/${mm}`,
+      full: `${fullDayOfWeek}, ${dd}/${mm}/${yyyy}`,
+      isoDate: `${yyyy}-${mm}-${dd}`,
+    })
+  }
+  return result
+}
 
 const DEPARTMENTS = [
   {
@@ -44,9 +67,12 @@ export function BookingFlow() {
   const [step, setStep] = useState(2)
   const [experts, setExperts] = useState<ExpertItem[]>([])
   const [loadingExperts, setLoadingExperts] = useState(true)
-  const [selectedDate, setSelectedDate] = useState(DATES[0])
+  const [dates, setDates] = useState<DateOption[]>([])
+  const [selectedDate, setSelectedDate] = useState<DateOption>({ day: '', date: '', full: '', isoDate: '' })
   const [selectedSpecialty, setSelectedSpecialty] = useState('CK. Tư vấn Trầm cảm & Lo âu')
   const [selectedTime, setSelectedTime] = useState('09:00')
+  const [busySlots, setBusySlots] = useState<string[]>([])
+  const [loadingSlots, setLoadingSlots] = useState(false)
   const [selectedCounselor, setSelectedCounselor] = useState('')
   const [sessionMode, setSessionMode] = useState<'online' | 'offline'>('online')
   const [patientName, setPatientName] = useState('')
@@ -56,6 +82,10 @@ export function BookingFlow() {
   const [bookingError, setBookingError] = useState('')
 
   useEffect(() => {
+    const generatedDates = getDynamicDates()
+    setDates(generatedDates)
+    setSelectedDate(generatedDates[0])
+
     fetch('/api/experts')
       .then((res) => (res.ok ? res.json() : []))
       .then((data: ExpertItem[]) => {
@@ -68,34 +98,68 @@ export function BookingFlow() {
       .finally(() => setLoadingExperts(false))
   }, [])
 
+  // Fetch busy slots whenever counselor or date changes
+  useEffect(() => {
+    if (!selectedCounselor || !selectedDate.isoDate) return
+    setLoadingSlots(true)
+    fetch(`/api/bookings?counselor=${encodeURIComponent(selectedCounselor)}&date=${encodeURIComponent(selectedDate.isoDate)}&action=busySlots`)
+      .then((res) => (res.ok ? res.json() : { busySlots: [] }))
+      .then((data) => {
+        if (Array.isArray(data.busySlots)) {
+          setBusySlots(data.busySlots)
+          // If selected time is busy, reset selectedTime to first available time
+          if (data.busySlots.includes(selectedTime)) {
+            const firstAvailable = TIME_SLOTS.find((t) => !data.busySlots.includes(t))
+            if (firstAvailable) setSelectedTime(firstAvailable)
+          }
+        } else {
+          setBusySlots([])
+        }
+      })
+      .catch(() => setBusySlots([]))
+      .finally(() => setLoadingSlots(false))
+  }, [selectedCounselor, selectedDate])
+
   async function confirmBooking() {
     setSubmitting(true)
     setBookingError('')
-    const [day, month, year] = selectedDate.date.split('/').length === 2
-      ? [selectedDate.date.split('/')[0], selectedDate.date.split('/')[1], String(new Date().getFullYear())]
-      : selectedDate.date.split('/')
+    const isoDateStr = selectedDate.isoDate || new Date().toISOString().split('T')[0]
+    const scheduledAt = `${isoDateStr}T${selectedTime}:00+07:00`
+
     const response = await fetch('/api/bookings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ patientName, patientPhone, symptoms, selectedCounselor, selectedSpecialty, mode: sessionMode, scheduledAt: `${year}-${month}-${day}T${selectedTime}:00+07:00` }),
+      body: JSON.stringify({
+        patientName,
+        patientPhone,
+        symptoms,
+        selectedCounselor,
+        selectedSpecialty,
+        mode: sessionMode,
+        scheduledAt,
+      }),
     }).catch(() => null)
+
     setSubmitting(false)
     if (!response?.ok) {
       const payload = response ? await response.json().catch(() => ({})) : {}
-      setBookingError(payload.message || 'Không thể đặt lịch. Vui lòng thử lại.')
+      setBookingError(payload.message || 'Khung giờ này không thể đặt. Vui lòng thử lại.')
       return
     }
+
     const persisted = await response.json()
     saveBooking({
       id: persisted.bookingId,
       patientName: patientName.trim(),
+      patientPhone: patientPhone.trim(),
+      symptoms: symptoms.trim(),
       patientEmail: document.cookie.split('; ').find((value) => value.startsWith('user_email='))?.split('=')[1] || '',
       counselor: selectedCounselor,
       specialty: selectedSpecialty,
       date: selectedDate.full,
       time: selectedTime,
       mode: sessionMode,
-      status: 'upcoming',
+      status: 'pending',
     })
     setStep(4)
   }
@@ -177,11 +241,12 @@ export function BookingFlow() {
             <div>
               <label className="mb-1 block text-xs font-semibold text-slate-500">Chọn Ngày Khám</label>
               <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
-                {DATES.map((d) => {
-                  const isSelected = selectedDate.date === d.date
+                {dates.map((d) => {
+                  const isSelected = selectedDate.isoDate === d.isoDate
                   return (
                     <button
-                      key={d.date}
+                      key={d.isoDate || d.date}
+                      type="button"
                       onClick={() => setSelectedDate(d)}
                       className={cn(
                         'flex flex-col items-center justify-center rounded-xl px-3.5 py-2 min-w-[70px] border transition-all',
@@ -213,22 +278,31 @@ export function BookingFlow() {
 
                 {/* Time Slots Grid */}
                 <div className="pt-2">
-                  <span className="text-xs font-semibold text-slate-500 mb-2 block">Chọn khung giờ khả dụng:</span>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-semibold text-slate-500">Chọn khung giờ khả dụng:</span>
+                    {loadingSlots && <span className="text-[11px] text-teal-600 animate-pulse">Đang kiểm tra lịch...</span>}
+                  </div>
                   <div className="grid grid-cols-4 gap-2 sm:grid-cols-4">
                     {TIME_SLOTS.map((t) => {
                       const isSelected = selectedTime === t
+                      const isBusy = busySlots.includes(t)
                       return (
                         <button
                           key={t}
-                          onClick={() => setSelectedTime(t)}
+                          type="button"
+                          disabled={isBusy}
+                          onClick={() => !isBusy && setSelectedTime(t)}
                           className={cn(
-                            'rounded-xl py-2 text-xs font-bold border transition-all text-center',
-                            isSelected
+                            'rounded-xl py-2 text-xs font-bold border transition-all text-center flex flex-col items-center justify-center',
+                            isBusy
+                              ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed line-through opacity-70'
+                              : isSelected
                               ? 'bg-teal-600 text-white border-teal-600 ring-2 ring-teal-200 shadow-sm'
                               : 'bg-white text-slate-700 border-slate-200 hover:border-teal-400 hover:bg-teal-50/50'
                           )}
                         >
-                          {t}
+                          <span>{t}</span>
+                          {isBusy && <span className="text-[9px] font-normal no-underline text-rose-500">Đã đặt</span>}
                         </button>
                       );
                     })}
@@ -274,45 +348,36 @@ export function BookingFlow() {
 
         {/* STEP 4: Success Ticket */}
         {step === 4 && (
-          <div className="rounded-2xl border-2 border-dashed border-teal-200 bg-emerald-50/40 p-5 text-center">
-            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-teal-600 text-white shadow-lg">
-              <ShieldCheck className="h-8 w-8" />
+          <div className="rounded-2xl border border-teal-200 bg-emerald-50/40 p-4 text-center">
+            <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-teal-600 text-white shadow-sm">
+              <ShieldCheck className="h-6 w-6" />
             </div>
-            <h3 className="font-heading text-lg font-extrabold text-teal-900">Đặt Lịch Thành Công!</h3>
-            <p className="mt-1 text-xs text-slate-600">Phòng khám Mind Care đã ghi nhận lịch hẹn của bạn.</p>
+            <h3 className="font-heading text-base font-extrabold text-teal-900">Đặt Lịch Thành Công!</h3>
+            <p className="mt-0.5 text-xs text-slate-600">Lịch hẹn đã được gửi đến bác sĩ/chuyên gia và đang chờ duyệt.</p>
 
-            <div className="mt-4 rounded-xl bg-white p-4 text-left text-xs space-y-2 border border-emerald-100 shadow-xs">
+            <div className="mt-3 rounded-xl bg-white p-3 text-left text-xs space-y-1.5 border border-slate-200">
               <div className="flex justify-between border-b border-slate-100 pb-1">
-                <span className="text-slate-500">Mã phiếu hẹn:</span>
-                <span className="font-extrabold text-teal-700">MC-2025-8892</span>
+                <span className="text-slate-500">Trạng thái:</span>
+                <span className="font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded text-[10px]">Chờ bác sĩ duyệt</span>
               </div>
               <div className="flex justify-between border-b border-slate-100 pb-1">
                 <span className="text-slate-500">Họ và tên:</span>
-                <span className="font-bold text-slate-800">{patientName}</span>
+                <span className="font-semibold text-slate-800">{patientName}</span>
               </div>
               <div className="flex justify-between border-b border-slate-100 pb-1">
-                <span className="text-slate-500">Ngày tư vấn:</span>
-                <span className="font-bold text-slate-800">{selectedDate.full}</span>
-              </div>
-              <div className="flex justify-between border-b border-slate-100 pb-1">
-                <span className="text-slate-500">Khung giờ:</span>
-                <span className="font-bold text-emerald-700">{selectedTime}</span>
-              </div>
-              <div className="flex justify-between border-b border-slate-100 pb-1">
-                <span className="text-slate-500">Chuyên gia:</span>
-                <span className="font-bold text-slate-800">{selectedCounselor}</span>
+                <span className="text-slate-500">Thời gian:</span>
+                <span className="font-bold text-teal-700">{selectedDate.date} lúc {selectedTime}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Chuyên khoa:</span>
-                <span className="font-bold text-slate-800">{selectedSpecialty}</span>
+                <span className="text-slate-500">Chuyên gia:</span>
+                <span className="font-semibold text-slate-800">{selectedCounselor}</span>
               </div>
             </div>
           </div>
         )}
-
-        {/* Bottom Navigation Buttons */}
         <div className="mt-6 flex items-center justify-between gap-4 pt-4 border-t border-slate-100">
           <button
+            type="button"
             onClick={() => setStep((prev) => Math.max(1, prev - 1))}
             disabled={step === 1}
             className={cn(
@@ -327,7 +392,8 @@ export function BookingFlow() {
           </button>
 
           <button
-            disabled={submitting || (step === 3 && (!patientName.trim() || !patientPhone.trim() || !selectedCounselor))}
+            type="button"
+            disabled={submitting || (step === 2 && busySlots.includes(selectedTime)) || (step === 3 && (!patientName.trim() || !patientPhone.trim() || !selectedCounselor))}
             onClick={() => {
               if (step === 3) { void confirmBooking() }
               else if (step < 4) setStep((prev) => prev + 1)
@@ -339,8 +405,14 @@ export function BookingFlow() {
             <ArrowRight className="h-4 w-4" />
           </button>
         </div>
-        {bookingError && <p role="alert" className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-700">{bookingError}</p>}
+        {bookingError && (
+          <div className="mt-3 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-700">
+            <AlertCircle className="h-5 w-5 shrink-0 mt-0.5 text-rose-600" />
+            <span>{bookingError}</span>
+          </div>
+        )}
       </div>
     </div>
   )
 }
+
