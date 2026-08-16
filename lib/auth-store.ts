@@ -60,7 +60,6 @@ function passwordMatches(password: string, storedHash: string) {
 export async function registerAccount(name: string, email: string, password: string, role: Role = 'student') {
   const normalizedEmail = email.trim().toLowerCase()
 
-  // Always save to memory store so login succeeds seamlessly
   const memUser: MemoryUser = {
     id: randomUUID(),
     name: name.trim(),
@@ -68,8 +67,6 @@ export async function registerAccount(name: string, email: string, password: str
     passwordHash: hashPassword(password),
     role,
   }
-  MEMORY_ACCOUNTS.set(normalizedEmail, memUser)
-
   try {
     const pool = await getDb()
     const existing = await pool.request().input('email', sql.NVarChar(255), normalizedEmail).query('SELECT TOP 1 id FROM users WHERE email = @email')
@@ -85,9 +82,15 @@ export async function registerAccount(name: string, email: string, password: str
       await new sql.Request(transaction).input('userId', sql.UniqueIdentifier, id).input('name', sql.NVarChar(255), name.trim()).query('INSERT INTO profiles(user_id,full_name) VALUES(@userId,@name)')
       await transaction.commit()
     } catch (error) { await transaction.rollback(); throw error }
-  } catch {
-    // If DB is offline, memory registration remains valid!
+  } catch (error) {
+    console.error('[MIND-CARE REGISTER DATABASE]', error)
+    // A configured database is the source of truth. Do not report a successful
+    // registration if the account cannot be persisted and logged in later.
+    if (process.env.DB_SERVER) throw error
   }
+
+  // Only retain the new password after the email has passed the duplicate check.
+  MEMORY_ACCOUNTS.set(normalizedEmail, memUser)
 
   return true
 }

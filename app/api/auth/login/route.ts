@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     const studentAnonymousId = userRole === 'student' ? anonymousId() : undefined
     const maxAge = 60 * 60 * 8
     const expiresAt = Date.now() + maxAge * 1000
-    const sessionToken = await createSessionToken({ userId: account.id, email: account.email, role: userRole === 'admin' ? 'counselor' : userRole, expiresAt })
+    const sessionToken = await createSessionToken({ userId: account.id, email: account.email, role: userRole, expiresAt })
 
     const response = NextResponse.json({
       success: true,

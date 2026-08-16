@@ -64,36 +64,47 @@ export async function GET(request: Request) {
     const cookieStore = await cookies()
     const session = await readSessionToken(cookieStore.get('auth_session')?.value)
 
+    if (!session) return NextResponse.json({ message: 'Bạn cần đăng nhập.' }, { status: 401 })
+
     let query = ''
     const req = pool.request()
+    const dbUserId = await getOrEnsureDbUserId(pool, session)
 
-    if (bookingIdParam && UUID_REGEX.test(bookingIdParam)) {
-      query = `SELECT a.id, a.user_id, a.expert_name, a.scheduled_at, a.mode, a.status, a.notes 
-               FROM appointments a 
-               WHERE a.id = @bookingId`
+    if (session.role === 'student') {
+      if (bookingIdParam && UUID_REGEX.test(bookingIdParam)) {
+        query = `SELECT a.id, a.user_id, a.expert_name, a.scheduled_at, a.mode, a.status, a.notes
+                 FROM appointments a WHERE a.id = @bookingId AND a.user_id = @userId`
+        req.input('bookingId', sql.UniqueIdentifier, bookingIdParam)
+      } else {
+        query = `SELECT a.id, a.user_id, a.expert_name, a.scheduled_at, a.mode, a.status, a.notes
+                 FROM appointments a WHERE a.user_id = @userId ORDER BY a.scheduled_at DESC`
+      }
+      req.input('userId', sql.UniqueIdentifier, dbUserId)
+    } else if (session.role === 'counselor') {
+      const profile = await pool.request().input('id', sql.UniqueIdentifier, dbUserId).query('SELECT TOP 1 full_name FROM profiles WHERE user_id = @id')
+      const counselorName = profile.recordset[0]?.full_name
+      if (!counselorName) return NextResponse.json({ message: 'Không tìm thấy hồ sơ chuyên viên.' }, { status: 404 })
+
+      if (bookingIdParam && UUID_REGEX.test(bookingIdParam)) {
+        query = `SELECT a.id, a.user_id, a.expert_name, a.scheduled_at, a.mode, a.status, a.notes
+                 FROM appointments a WHERE a.id = @bookingId AND a.expert_name = @counselor`
+        req.input('bookingId', sql.UniqueIdentifier, bookingIdParam)
+      } else {
+        query = `SELECT a.id, a.user_id, a.expert_name, a.scheduled_at, a.mode, a.status, a.notes
+                 FROM appointments a WHERE a.expert_name = @counselor ORDER BY a.scheduled_at DESC`
+      }
+      req.input('counselor', sql.NVarChar(255), counselorName)
+    } else if (bookingIdParam && UUID_REGEX.test(bookingIdParam)) {
+      query = `SELECT a.id, a.user_id, a.expert_name, a.scheduled_at, a.mode, a.status, a.notes
+               FROM appointments a WHERE a.id = @bookingId`
       req.input('bookingId', sql.UniqueIdentifier, bookingIdParam)
     } else if (counselor) {
-      query = `SELECT a.id, a.user_id, a.expert_name, a.scheduled_at, a.mode, a.status, a.notes 
-               FROM appointments a 
-               WHERE a.expert_name = @counselor 
-               ORDER BY a.scheduled_at DESC`
+      query = `SELECT a.id, a.user_id, a.expert_name, a.scheduled_at, a.mode, a.status, a.notes
+               FROM appointments a WHERE a.expert_name = @counselor ORDER BY a.scheduled_at DESC`
       req.input('counselor', sql.NVarChar(255), counselor)
-    } else if (session) {
-      const dbUserId = await getOrEnsureDbUserId(pool, session)
-      if (session.role === 'counselor' || session.role === 'admin') {
-        // Counselors and admins can view all appointments
-        query = `SELECT a.id, a.user_id, a.expert_name, a.scheduled_at, a.mode, a.status, a.notes 
-                 FROM appointments a 
-                 ORDER BY a.scheduled_at DESC`
-      } else {
-        query = `SELECT a.id, a.user_id, a.expert_name, a.scheduled_at, a.mode, a.status, a.notes 
-                 FROM appointments a 
-                 WHERE a.user_id = @userId 
-                 ORDER BY a.scheduled_at DESC`
-        req.input('userId', sql.UniqueIdentifier, dbUserId)
-      }
     } else {
-      return NextResponse.json({ message: 'Bạn cần đăng nhập.' }, { status: 401 })
+      query = `SELECT a.id, a.user_id, a.expert_name, a.scheduled_at, a.mode, a.status, a.notes
+               FROM appointments a ORDER BY a.scheduled_at DESC`
     }
 
     const result = await req.query(query)

@@ -51,8 +51,9 @@ export default function AdminPage() {
       })
     )
 
-    if (cookies.user_role !== 'admin' && cookies.user_role !== 'counselor') {
-      // Allow viewing or redirect if strictly enforced
+    if (cookies.user_role !== 'admin') {
+      router.replace('/')
+      return
     }
 
     setDoctors(getDoctors())
