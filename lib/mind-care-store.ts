@@ -25,7 +25,9 @@ export type MindBooking = {
   date: string
   time: string
   mode: 'online' | 'offline'
-  status: 'upcoming' | 'completed'
+  status: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'upcoming'
+  patientPhone?: string
+  symptoms?: string
 }
 
 export type ClinicalRecord = {
@@ -48,6 +50,46 @@ export type CarePlan = {
 }
 
 export type FamilyMember = { id: string; name: string; dob: string; cccd: string; phone: string }
+
+export type Doctor = {
+  id: string
+  name: string
+  email: string
+  phone: string
+  specialty: string
+  status: 'active' | 'locked'
+  createdAt: string
+}
+
+const DEFAULT_DOCTORS: Doctor[] = [
+  {
+    id: 'DOC-101',
+    name: 'ThS. Nguyễn Minh An',
+    email: 'chuyenvien@mindcare.vn',
+    phone: '0912 345 678',
+    specialty: 'Tham vấn Lo âu & Trầm cảm',
+    status: 'active',
+    createdAt: '15/01/2026',
+  },
+  {
+    id: 'DOC-102',
+    name: 'BS. CKII Lê Hoàng Nam',
+    email: 'lehoangnam@mindcare.vn',
+    phone: '0988 777 666',
+    specialty: 'Tâm lý Học đường & Áp lực',
+    status: 'active',
+    createdAt: '20/01/2026',
+  },
+  {
+    id: 'DOC-103',
+    name: 'ThS. Phạm Thu Trang',
+    email: 'phamthutrang@mindcare.vn',
+    phone: '0933 111 222',
+    specialty: 'Trị liệu Gia đình & Mối quan hệ',
+    status: 'active',
+    createdAt: '01/02/2026',
+  },
+]
 
 const read = <T,>(key: string, fallback: T): T => {
   if (typeof window === 'undefined') return fallback
@@ -74,7 +116,11 @@ export const getCarePlans = () => read<CarePlan[]>('mind-care-care-plans', [])
 export const saveCarePlan = (plan: CarePlan) => write('mind-care-care-plans', [plan, ...getCarePlans()])
 export const getFamilyMembers = () => read<FamilyMember[]>('mind-care-family-members', [])
 export const saveFamilyMembers = (members: FamilyMember[]) => write('mind-care-family-members', members)
+export const getDoctors = () => read<Doctor[]>('mind-care-doctors', DEFAULT_DOCTORS)
+export const saveDoctor = (doc: Doctor) => write('mind-care-doctors', [doc, ...getDoctors()])
+export const updateDoctor = (doc: Doctor) => write('mind-care-doctors', getDoctors().map((d) => d.id === doc.id ? doc : d))
 export const getMood = () => read<number | null>('mind-care-mood', null)
 export const saveMood = (mood: number) => write('mind-care-mood', mood)
 export const getHomework = () => read<Record<string, boolean>>('mind-care-homework', {})
 export const saveHomework = (value: Record<string, boolean>) => write('mind-care-homework', value)
+

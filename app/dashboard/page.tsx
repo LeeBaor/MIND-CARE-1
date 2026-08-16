@@ -2,26 +2,34 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Bell, Brain, CalendarDays, Check, ChevronRight, ClipboardCheck, CreditCard, HeartPulse, LockKeyhole, Moon, ShieldCheck, UsersRound } from 'lucide-react'
+import { Bell, BookOpenCheck, Brain, CalendarDays, Check, ClipboardCheck, HeartPulse, Moon, ShieldCheck, Sparkles, UsersRound } from 'lucide-react'
 import { SiteHeader } from '@/components/site-header'
 import { SiteFooter } from '@/components/site-footer'
 import { BachMaiNav } from '@/components/bachmai-nav'
 import { SosButton } from '@/components/sos-button'
-import { getMood, saveMood, type MindBooking } from '@/lib/mind-care-store'
-import { DailyPractices } from '@/components/dashboard/daily-practices'
+import { getBookings, getHomework, getMood, saveHomework, saveMood, type MindBooking } from '@/lib/mind-care-store'
 
 const moods = [{ value: 5, emoji: '😀', label: 'Rất vui' }, { value: 4, emoji: '🙂', label: 'Ổn' }, { value: 3, emoji: '😐', label: 'Bình thường' }, { value: 2, emoji: '😟', label: 'Lo âu' }, { value: 1, emoji: '😞', label: 'Buồn' }]
+const practices = [{ id: 'breathe', title: 'Hít thở 4–7–8', note: '5 phút · 20:30' }, { id: 'journal', title: 'Nhật ký CBT', note: 'Ghi lại một suy nghĩ hôm nay' }, { id: 'sleep', title: 'Theo dõi giấc ngủ', note: 'Điền trước khi đi ngủ' }]
 
 export default function DashboardPage() {
   const [mood, setMood] = useState<number | null>(null)
   const [sleep, setSleep] = useState('7.5')
   const [stress, setStress] = useState('3')
   const [bookings, setBookings] = useState<MindBooking[]>([])
-  const [anonymous, setAnonymous] = useState(true)
-  const [accessGranted, setAccessGranted] = useState(true)
+  const [homework, setHomework] = useState<Record<string, boolean>>({})
 
-  useEffect(() => { setMood(getMood()); fetch('/api/bookings').then(response => response.ok ? response.json() : Promise.reject()).then(setBookings).catch(() => setBookings([])) }, [])
+  useEffect(() => {
+    setMood(getMood())
+    setHomework(getHomework())
+
+    fetch('/api/bookings')
+      .then((res) => (res.ok ? res.json() : getBookings()))
+      .then((data: MindBooking[]) => setBookings(data))
+      .catch(() => setBookings(getBookings()))
+  }, [])
   const updateMood = (value: number) => { setMood(value); saveMood(value) }
+  const toggleHomework = (id: string) => { const next = { ...homework, [id]: !homework[id] }; setHomework(next); saveHomework(next) }
 
   return <div className="flex min-h-screen flex-col bg-[#f4fbf6]">
     <SiteHeader active="dashboard" />
@@ -32,26 +40,58 @@ export default function DashboardPage() {
       </section>
 
       <section className="rounded-[28px] border border-emerald-100 bg-white p-5 shadow-sm">
-        <div className="flex items-center justify-between"><div className="flex items-center gap-2"><span className="rounded-xl bg-rose-50 p-2 text-rose-500"><HeartPulse className="h-5 w-5" /></span><div><h2 className="font-heading font-extrabold text-slate-900">Nhật ký cảm xúc</h2><p className="text-xs text-slate-500">Chỉ mất vài giây, hoàn toàn riêng tư.</p></div></div><span className="text-xs font-bold text-emerald-700">{mood ? 'Đã lưu hôm nay' : 'Chưa chọn'}</span></div>
-        <div className="mt-4 flex justify-between gap-1">{moods.map(item => <button key={item.value} onClick={() => updateMood(item.value)} className={`flex min-w-0 flex-1 flex-col items-center rounded-2xl px-1 py-2 transition ${mood === item.value ? item.value === 3 ? 'bg-amber-100 ring-2 ring-amber-500' : item.value === 1 ? 'bg-indigo-100 ring-2 ring-indigo-500' : 'bg-emerald-100 ring-2 ring-emerald-500' : item.value === 3 ? 'bg-amber-50 hover:bg-amber-100' : item.value === 1 ? 'bg-indigo-50 hover:bg-indigo-100' : 'hover:bg-slate-50'}`}><span className="text-2xl">{item.emoji}</span><span className={`mt-1 text-[10px] font-extrabold ${item.value === 3 ? 'text-amber-800' : item.value === 1 ? 'text-indigo-800' : 'text-slate-600'}`}>{item.label}</span></button>)}</div>
+        <div className="flex items-center justify-between"><div className="flex items-center gap-2"><span className="rounded-xl bg-rose-50 p-2 text-rose-500"><HeartPulse className="h-5 w-5" /></span><div><h2 className="font-heading font-extrabold text-slate-900">Check-in cảm xúc</h2><p className="text-xs text-slate-500">Chỉ mất vài giây, hoàn toàn riêng tư.</p></div></div><span className="text-xs font-bold text-emerald-700">{mood ? 'Đã lưu hôm nay' : 'Chưa chọn'}</span></div>
+        <div className="mt-4 flex justify-between gap-1">{moods.map(item => <button key={item.value} onClick={() => updateMood(item.value)} className={`flex min-w-0 flex-1 flex-col items-center rounded-2xl px-1 py-2 transition ${mood === item.value ? 'bg-emerald-100 ring-1 ring-emerald-500' : 'hover:bg-slate-50'}`}><span className="text-2xl">{item.emoji}</span><span className="mt-1 text-[10px] font-bold text-slate-600">{item.label}</span></button>)}</div>
         <div className="mt-4 grid grid-cols-2 gap-3"><label className="rounded-2xl bg-slate-50 p-3 text-xs font-bold text-slate-600"> <span className="flex items-center gap-1"><Moon className="h-3.5 w-3.5 text-indigo-500" /> Giấc ngủ (giờ)</span><input type="number" min="0" max="24" step="0.5" value={sleep} onChange={e => setSleep(e.target.value)} className="mt-2 w-full bg-transparent text-lg font-extrabold text-slate-900 outline-none" /></label><label className="rounded-2xl bg-slate-50 p-3 text-xs font-bold text-slate-600">Mức stress (1–5)<input type="number" min="1" max="5" value={stress} onChange={e => setStress(e.target.value)} className="mt-2 w-full bg-transparent text-lg font-extrabold text-slate-900 outline-none" /></label></div>
       </section>
 
       <section className="grid gap-3 md:grid-cols-2">
         <div className="rounded-[28px] border border-emerald-100 bg-white p-5 shadow-sm"><div className="flex items-center justify-between"><h2 className="font-heading font-extrabold text-slate-900">Lộ trình tham vấn</h2><Link href="/booking" className="text-xs font-bold text-emerald-700">Đặt lịch</Link></div><div className="mt-4 flex items-center gap-2">{['Sàng lọc','Đánh giá','Trị liệu','Tái đánh giá'].map((item, index) => <div key={item} className="flex flex-1 items-center gap-1"><span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-extrabold ${index < 2 ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-700'}`}>{index < 2 ? <Check className="h-4 w-4" /> : index + 1}</span>{index < 3 && <span className={`h-1 flex-1 ${index < 1 ? 'bg-emerald-500' : 'bg-emerald-100'}`} />}</div>)}</div><p className="mt-3 text-xs text-slate-500">Bước tiếp theo: hoàn thành buổi tham vấn đầu tiên.</p></div>
-        <div className="rounded-[28px] border border-emerald-100 bg-white p-5 shadow-sm"><div className="flex items-center justify-between"><h2 className="font-heading font-extrabold text-slate-900">Lịch hẹn</h2><CalendarDays className="h-5 w-5 text-emerald-600" /></div>{bookings[0] ? <div className="mt-3 rounded-2xl bg-emerald-50 p-3 text-xs"><strong className="block text-emerald-950">{bookings[0].counselor}</strong><span className="mt-1 block text-emerald-800">{bookings[0].date} · {bookings[0].time} · {bookings[0].mode === 'online' ? 'Trực tuyến' : 'Tại phòng khám'}</span></div> : <p className="mt-4 text-sm text-slate-500">Chưa có lịch hẹn. Chọn chuyên gia và khung giờ phù hợp.</p>}</div>
+        <div className="rounded-[28px] border border-emerald-100 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <h2 className="font-heading font-extrabold text-slate-900">Lịch hẹn của tôi</h2>
+            <CalendarDays className="h-5 w-5 text-emerald-600" />
+          </div>
+          {bookings[0] ? (
+            <div className="mt-3 rounded-2xl bg-emerald-50/80 p-3 text-xs space-y-1">
+              <div className="flex items-center justify-between">
+                <strong className="block text-emerald-950 text-sm">{bookings[0].counselor}</strong>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                    bookings[0].status === 'completed'
+                      ? 'bg-emerald-200 text-emerald-800'
+                      : bookings[0].status === 'confirmed'
+                      ? 'bg-teal-200 text-teal-800'
+                      : bookings[0].status === 'cancelled'
+                      ? 'bg-rose-200 text-rose-800'
+                      : 'bg-amber-200 text-amber-800'
+                  }`}
+                >
+                  {bookings[0].status === 'completed'
+                    ? 'Đã khám'
+                    : bookings[0].status === 'confirmed'
+                    ? 'Đã chấp nhận'
+                    : bookings[0].status === 'cancelled'
+                    ? 'Đã từ chối'
+                    : 'Chờ duyệt'}
+                </span>
+              </div>
+              <span className="block text-slate-700">
+                📅 {bookings[0].date} · ⏰ {bookings[0].time} · {bookings[0].mode === 'online' ? 'Trực tuyến' : 'Tại phòng khám'}
+              </span>
+              {bookings[0].status === 'cancelled' && (
+                <p className="text-rose-600 font-semibold pt-1">⚠️ Lịch hẹn này đã bị từ chối. Vui lòng chọn khung giờ khác.</p>
+              )}
+            </div>
+          ) : (
+            <p className="mt-4 text-sm text-slate-500">Chưa có lịch hẹn. Chọn chuyên gia và khung giờ phù hợp.</p>
+          )}
+        </div>
       </section>
 
-      <DailyPractices />
+      <section className="rounded-[28px] border border-emerald-100 bg-white p-5 shadow-sm"><div className="flex items-center justify-between"><div className="flex items-center gap-2"><BookOpenCheck className="h-5 w-5 text-emerald-600" /><h2 className="font-heading font-extrabold text-slate-900">Đơn bài tập trị liệu</h2></div><span className="text-xs font-bold text-emerald-700">{Object.values(homework).filter(Boolean).length}/3 hoàn thành</span></div><div className="mt-3 space-y-2">{practices.map(item => <button key={item.id} onClick={() => toggleHomework(item.id)} className="flex w-full items-center gap-3 rounded-2xl border border-slate-100 p-3 text-left hover:border-emerald-200"><span className={`flex h-6 w-6 items-center justify-center rounded-lg ${homework[item.id] ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-400'}`}>{homework[item.id] && <Check className="h-4 w-4" />}</span><span><strong className="block text-sm text-slate-800">{item.title}</strong><small className="text-xs text-slate-500">{item.note}</small></span></button>)}</div></section>
 
-      <section className="grid gap-3 md:grid-cols-2">
-        <div className="rounded-[28px] border border-emerald-100 bg-white p-5 shadow-sm"><div className="flex items-center gap-2"><LockKeyhole className="h-5 w-5 text-emerald-600" /><h2 className="font-heading font-extrabold text-slate-900">Quyền riêng tư</h2></div><Toggle label="Hiển thị ẩn danh trong nhật ký" checked={anonymous} onChange={() => setAnonymous(!anonymous)} /><Toggle label="Chuyên gia được xem hồ sơ" checked={accessGranted} onChange={() => setAccessGranted(!accessGranted)} /></div>
-        <div className="rounded-[28px] border border-emerald-100 bg-white p-5 shadow-sm"><div className="flex items-center gap-2"><CreditCard className="h-5 w-5 text-emerald-600" /><h2 className="font-heading font-extrabold text-slate-900">Gói tham vấn</h2></div><p className="mt-3 text-sm font-bold text-slate-800">Chưa đăng ký gói tham vấn</p><p className="mt-1 text-xs leading-relaxed text-slate-500">Nên hoàn thành buổi tham vấn đầu tiên để chuyên gia đề xuất số buổi và lộ trình phù hợp, tránh mua gói không cần thiết.</p><Link href="/booking" className="mt-3 flex items-center gap-1 text-xs font-bold text-emerald-700">Đặt buổi tham vấn đầu tiên <ChevronRight className="h-4 w-4" /></Link></div>
-      </section>
-
-      <section className="grid grid-cols-3 gap-3">{[{href:'/assessment',label:'Trắc nghiệm',icon:ClipboardCheck},{href:'/results',label:'Kết quả',icon:Brain},{href:'/notifications',label:'Thông báo',icon:Bell},{href:'/profile',label:'Hồ sơ',icon:ShieldCheck},{href:'/profile',label:'Thành viên',icon:UsersRound}].map(({href,label,icon:Icon}) => <Link href={href} key={label} className="rounded-2xl border border-emerald-100 bg-white p-3 text-center shadow-sm"><Icon className="mx-auto h-5 w-5 text-emerald-600" /><span className="mt-1 block text-[11px] font-bold text-slate-700">{label}</span></Link>)}</section>
+      <section className="grid grid-cols-3 gap-3">{[{href:'/assessment',label:'Trắc nghiệm',icon:ClipboardCheck},{href:'/results',label:'Kết quả',icon:Brain},{href:'/notifications',label:'Thông báo',icon:Bell},{href:'/booking',label:'Đặt lịch',icon:CalendarDays},{href:'/profile',label:'Hồ sơ',icon:ShieldCheck},{href:'/profile',label:'Thành viên',icon:UsersRound}].map(({href,label,icon:Icon}) => <Link href={href} key={label} className="rounded-2xl border border-emerald-100 bg-white p-3 text-center shadow-sm"><Icon className="mx-auto h-5 w-5 text-emerald-600" /><span className="mt-1 block text-[11px] font-bold text-slate-700">{label}</span></Link>)}</section>
     </div></main><SiteFooter /><BachMaiNav />
   </div>
 }
-
-function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: () => void }) { return <button onClick={onChange} className="mt-3 flex w-full items-center justify-between text-left text-xs font-semibold text-slate-600"><span>{label}</span><span className={`flex h-6 w-11 items-center rounded-full p-1 transition ${checked ? 'justify-end bg-emerald-600' : 'justify-start bg-slate-200'}`}><span className="h-4 w-4 rounded-full bg-white shadow" /></span></button> }

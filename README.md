@@ -1,99 +1,97 @@
-# MINDCARE
+# 🧠 MIND CARE - Nền Tảng Chăm Sóc Sức Khỏe Tinh Thần Học Đường
 
-Nền tảng hỗ trợ chăm sóc sức khỏe tinh thần, gồm đăng ký/đăng nhập, hồ sơ cá nhân, sàng lọc DASS-21, kết quả đánh giá, đặt lịch, quản lý buổi tham vấn, thông báo và SOS.
+MIND CARE là ứng dụng web hỗ trợ đánh giá, theo dõi và tham vấn sức khỏe tâm lý cho học sinh dựa trên bộ câu hỏi chuẩn **DASS-21**, kết hợp Trợ lý AI đồng hành và kết nối lịch hẹn với Chuyên gia tâm lý.
 
-## Yêu cầu
+---
 
-- Windows 10 hoặc Windows 11.
-- Node.js 20 trở lên và npm.
-- Microsoft SQL Server đang hoạt động.
-- SQL Server Management Studio chỉ dùng để quản lý; website kết nối trực tiếp tới SQL Server.
-- Mã nguồn đặt tại `D:\Admin\mind-care-1` để tránh chiếm dung lượng ổ C.
+## 📋 Yêu Cầu Hệ Thống (Requirements)
 
-Kiểm tra Node.js và npm:
+Trước khi chạy dự án, hãy đảm bảo máy tính của bạn đã cài đặt:
+1. **Node.js**: Phiên bản `v18.0` trở lên ([Tải tại nodejs.org](https://nodejs.org/))
+2. **Microsoft SQL Server**: Bản Express hoặc Standard (Mặc định chạy tại port `14330` hoặc `1433`).
 
-```cmd
-node --version
-npm.cmd --version
+---
+
+## 🚀 Hướng Dẫn Chạy Ứng Dụng (Cách Đơn Giản Nhất)
+
+### 🌟 Cách 1: Chạy 1-Click (Dành cho mọi người dùng)
+
+Không cần gõ lệnh thủ công! Dự án đã tích hợp sẵn script tự động hóa kiểm tra môi trường, cài đặt thư viện và khởi tạo Database:
+
+1. **Nhấp đúp chuột vào tệp `run-dev.cmd`** trong thư mục dự án.
+   * *Script sẽ tự động:*
+     * Tạo tệp cấu hình `.env.local` từ `.env.example` (nếu chưa có).
+     * Cài đặt các gói phụ thuộc `npm install` (nếu chưa cài).
+     * Áp dụng cấu trúc CSDL `npm run db:migrate`.
+     * Khởi chạy Web Server tại `http://localhost:3000`.
+2. Mở trình duyệt và truy cập: **[http://localhost:3000](http://localhost:3000)**
+
+*(Nếu muốn chạy bản Production tốc độ cao đã đóng gói sẵn, nhấp đúp vào `run-web.cmd`).*
+
+---
+
+### 💻 Cách 2: Chạy Bằng Dòng Lệnh (Dành cho Lập trình viên)
+
+Nếu bạn sử dụng Terminal / Command Prompt / PowerShell:
+
+#### Bước 1: Cài đặt thư viện phụ thuộc
+```bash
+npm install
 ```
 
-## Cài đặt lần đầu
+#### Bước 2: Cấu hình môi trường
+Sao chép tệp mẫu `.env.example` thành `.env.local`:
+* **Windows (CMD):** `copy .env.example .env.local`
+* **Linux / MacOS / Bash:** `cp .env.example .env.local`
 
-1. Mở Command Prompt hoặc PowerShell tại `D:\Admin\mind-care-1`.
-2. Sao chép `.env.example` thành `.env.local` và điền thông tin SQL Server.
-3. Chạy lệnh thiết lập tự động:
+*(Kiểm tra các thông số kết nối Database `DB_SERVER`, `DB_USER`, `DB_PASSWORD` trong `.env.local` nếu cần).*
 
-```cmd
-npm.cmd run setup
+#### Bước 3: Khởi tạo CSDL & Khởi chạy Web (1 lệnh duy nhất)
+```bash
+npm run setup:dev
 ```
-
-Lệnh này cài đúng dependency trong `package-lock.json`, tạo/cập nhật cấu trúc database và build bản production.
-
-## Cấu hình `.env.local`
-
-```env
-DB_SERVER=127.0.0.1
-DB_PORT=14330
-DB_INSTANCE=
-DB_NAME=MINDCARE
-DB_USER=mindcare_app
-DB_PASSWORD=mat-khau-sql-server
-DB_ENCRYPT=false
-DB_TRUST_CERTIFICATE=true
-COOKIE_SECURE=false
-EXPERT_REGISTRATION_CODE=ma-moi-chuyen-gia-rieng
-AUTH_SECRET=chuoi-ngau-nhien-dai-it-nhat-32-ky-tu
+Hoặc chạy từng lệnh riêng lẻ:
+```bash
+npm run db:migrate
+npm run dev
 ```
+Trình duyệt sẽ sẵn sàng tại: **`http://localhost:3000`**
 
-- Không đưa `.env.local` lên GitHub.
-- Khi chạy HTTPS thật, đổi `COOKIE_SECURE=true`.
-- Nếu dùng SQL Server instance thay vì cổng TCP, điền `DB_INSTANCE` và kiểm tra lại cấu hình kết nối.
+---
 
-## Chạy website
+## 🛠️ Các Câu Lệnh Npm Cần Thiết (Npm Scripts)
 
-### Chạy nhanh và ổn định
+| Lệnh | Mô tả |
+| :--- | :--- |
+| `npm run dev` | Khởi chạy môi trường phát triển (Development mode với Hot-reload) |
+| `npm run setup` | Cài đặt `node_modules` và tự động cập nhật Migration Database |
+| `npm run setup:dev` | Cài đặt toàn bộ phụ thuộc, tạo DB và khởi chạy web lập tức |
+| `npm run db:migrate` | Đọc file SQL migration và cập nhật các bảng vào SQL Server |
+| `npm run build` | Đóng gói ứng dụng cho môi trường Production |
+| `npm run start` | Chạy ứng dụng bản Production sau khi build |
 
-Nhấp đúp `run-web.cmd`, sau đó mở [http://localhost:3000](http://localhost:3000). Đây là bản production đã build nên chuyển trang mượt hơn và không phải biên dịch lại từng trang.
+---
 
-Nếu vừa sửa mã nguồn, build lại trước:
+## 🗄️ Cấu Hình CSDL (Database Setup)
 
-```cmd
-npm.cmd run build
-```
+* **Hệ quản trị CSDL:** Microsoft SQL Server (Database name: `MINDCARE`).
+* **Cấu hình kết nối mẫu trong `.env.local`:**
+  ```env
+  DB_SERVER=127.0.0.1
+  DB_PORT=14330
+  DB_NAME=MINDCARE
+  DB_USER=mindcare_app
+  DB_PASSWORD=mindcare_password
+  AUTH_SECRET=mindcare_secret_auth_key_2026_safe_32chars
+  ```
+* **Bản vẽ bảng SQL:** `database/migrations/0001_mindcare.sql` (Bao gồm 11 bảng: `users`, `profiles`, `experts`, `surveys`, `survey_attempts`, `assessment_results`, `appointments`, `sos_requests`, v.v.).
 
-### Chạy để phát triển
+---
 
-Nhấp đúp `run-dev.cmd`, hoặc chạy:
+## 🧱 Cấu Trúc Dự Án (Project Architecture)
 
-```cmd
-npm.cmd run dev
-```
+* **`/app`**: Next.js App Router (Giao diện trang & Backend REST API endpoints).
+* **`/components`**: Các thành phần UI nguyên bản (Shadcn UI) & UI theo từng chức năng.
+* **`/lib`**: Kết nối SQL Server (`db.ts`), xử lý phân loại DASS-21 (`mind-care.ts`), mã hóa Session (`session.ts`).
+* **`/database` & `/scripts`**: Lưu bản vẽ cấu trúc CSDL SQL và script tự động migration.
 
-Chế độ này có thể chậm hơn ở lần mở trang đầu vì Next.js phải biên dịch trang.
-
-## Các lệnh cần dùng
-
-```cmd
-npm.cmd install             Cài/cập nhật dependency
-npm.cmd run db:migrate      Áp dụng migration SQL Server
-npm.cmd run typecheck       Kiểm tra lỗi TypeScript
-npm.cmd run build           Tạo bản production
-npm.cmd run check           Kiểm tra TypeScript và build
-npm.cmd run start           Chạy bản production đã build
-```
-
-Project Node.js không sử dụng `requirements.txt` như Python. Danh sách requirement nằm trong `package.json`, còn phiên bản chính xác được khóa trong `package-lock.json`.
-
-## Xử lý lỗi thường gặp
-
-- Không kết nối được database: kiểm tra dịch vụ SQL Server, TCP/IP, cổng, tài khoản và mật khẩu trong `.env.local`.
-- Cổng 3000 đang được sử dụng: đóng cửa sổ MINDCARE cũ rồi chạy lại.
-- Trang vẫn giữ phiên bản cũ: đóng server, chạy `npm.cmd run build`, sau đó mở lại `run-web.cmd`.
-- Thiếu package: chạy `npm.cmd install` tại đúng thư mục project trên ổ D.
-
-## Bảo mật
-
-- Không commit `.env.local`, mật khẩu SQL Server hoặc mã mời chuyên gia.
-- Dùng `AUTH_SECRET` riêng cho từng môi trường.
-- Sao lưu database `MINDCARE` trước khi cập nhật production.
-- Kết quả sàng lọc chỉ hỗ trợ tham khảo, không thay thế chẩn đoán chuyên môn.

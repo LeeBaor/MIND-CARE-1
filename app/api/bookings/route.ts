@@ -2,40 +2,227 @@ import { randomUUID } from 'node:crypto'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { getDb, sql } from '@/lib/db'
+import { getOrEnsureDbUserId, UUID_REGEX } from '@/lib/db-user'
 import { readSessionToken } from '@/lib/session'
 
-async function currentSession() { return readSessionToken((await cookies()).get('auth_session')?.value) }
-function mapBooking(row: Record<string, unknown>) {
-  const notes = JSON.parse(String(row.notes || '{}'))
-  const scheduled = new Date(String(row.scheduled_at))
-  return { id: row.id, patientName: notes.patientName || row.patient_name, patientEmail: row.patient_email, counselor: row.expert_name, counselorTitle: notes.counselorTitle || '', specialty: notes.specialty || '', date: scheduled.toLocaleDateString('vi-VN'), time: scheduled.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }), scheduledAt: scheduled.toISOString(), mode: row.mode, status: row.status === 'completed' ? 'completed' : 'upcoming' }
+function formatHHMM(dateObj: Date): string {
+  const hours = dateObj.getHours().toString().padStart(2, '0')
+  const minutes = dateObj.getMinutes().toString().padStart(2, '0')
+  return `${hours}:${minutes}`
 }
 
-export async function GET() {
-  const session = await currentSession(); if (!session) return NextResponse.json({ message: 'Bạn cần đăng nhập.' }, { status: 401 })
+function formatDateISO(dateObj: Date): string {
+  const yyyy = dateObj.getFullYear()
+  const mm = (dateObj.getMonth() + 1).toString().padStart(2, '0')
+  const dd = dateObj.getDate().toString().padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+
+function formatDateVN(dateObj: Date): string {
+  const yyyy = dateObj.getFullYear()
+  const mm = (dateObj.getMonth() + 1).toString().padStart(2, '0')
+  const dd = dateObj.getDate().toString().padStart(2, '0')
+  return `${dd}/${mm}/${yyyy}`
+}
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const counselor = searchParams.get('counselor')
+  const dateParam = searchParams.get('date')
+  const action = searchParams.get('action')
+  const bookingIdParam = searchParams.get('id')
+
   try {
-    const request = (await getDb()).request().input('userId', sql.UniqueIdentifier, session.userId)
-    const query = session.role === 'counselor'
-      ? `SELECT a.*,p.full_name patient_name,u.email patient_email FROM appointments a JOIN users u ON u.id=a.user_id JOIN profiles p ON p.user_id=u.id JOIN profiles cp ON cp.user_id=@userId WHERE a.expert_name=cp.full_name ORDER BY a.scheduled_at DESC`
-      : `SELECT a.*,p.full_name patient_name,u.email patient_email FROM appointments a JOIN users u ON u.id=a.user_id JOIN profiles p ON p.user_id=u.id WHERE a.user_id=@userId ORDER BY a.scheduled_at DESC`
-    const result = await request.query(query)
-    return NextResponse.json(result.recordset.map(mapBooking))
-  } catch (error) { console.error('[MIND-CARE BOOKINGS GET]', error); return NextResponse.json({ message: 'Không thể tải lịch hẹn.' }, { status: 503 }) }
+    const pool = await getDb()
+
+    // 1. If checking busy slots for a specific counselor and date
+    if (action === 'busySlots' || (counselor && dateParam)) {
+      const result = await pool
+        .request()
+        .input('counselor', sql.NVarChar(255), counselor || '')
+        .query(
+          `SELECT scheduled_at, status 
+           FROM appointments 
+           WHERE expert_name = @counselor 
+             AND status IN ('pending', 'confirmed')`
+        )
+
+      const busySlots: string[] = []
+      result.recordset.forEach((row) => {
+        const d = new Date(row.scheduled_at)
+        const rowIso = formatDateISO(d)
+        const rowVn = formatDateVN(d)
+        if (!dateParam || rowIso === dateParam || rowVn === dateParam || dateParam.includes(rowIso) || dateParam.includes(rowVn)) {
+          busySlots.push(formatHHMM(d))
+        }
+      })
+
+      return NextResponse.json({ busySlots })
+    }
+
+    // 2. Fetch full appointment list based on user session, specific ID, or counselor filter
+    const cookieStore = await cookies()
+    const session = await readSessionToken(cookieStore.get('auth_session')?.value)
+
+    let query = ''
+    const req = pool.request()
+
+    if (bookingIdParam && UUID_REGEX.test(bookingIdParam)) {
+      query = `SELECT a.id, a.user_id, a.expert_name, a.scheduled_at, a.mode, a.status, a.notes 
+               FROM appointments a 
+               WHERE a.id = @bookingId`
+      req.input('bookingId', sql.UniqueIdentifier, bookingIdParam)
+    } else if (counselor) {
+      query = `SELECT a.id, a.user_id, a.expert_name, a.scheduled_at, a.mode, a.status, a.notes 
+               FROM appointments a 
+               WHERE a.expert_name = @counselor 
+               ORDER BY a.scheduled_at DESC`
+      req.input('counselor', sql.NVarChar(255), counselor)
+    } else if (session) {
+      const dbUserId = await getOrEnsureDbUserId(pool, session)
+      if (session.role === 'counselor' || session.role === 'admin') {
+        // Counselors and admins can view all appointments
+        query = `SELECT a.id, a.user_id, a.expert_name, a.scheduled_at, a.mode, a.status, a.notes 
+                 FROM appointments a 
+                 ORDER BY a.scheduled_at DESC`
+      } else {
+        query = `SELECT a.id, a.user_id, a.expert_name, a.scheduled_at, a.mode, a.status, a.notes 
+                 FROM appointments a 
+                 WHERE a.user_id = @userId 
+                 ORDER BY a.scheduled_at DESC`
+        req.input('userId', sql.UniqueIdentifier, dbUserId)
+      }
+    } else {
+      return NextResponse.json({ message: 'Bạn cần đăng nhập.' }, { status: 401 })
+    }
+
+    const result = await req.query(query)
+
+    const appointments = result.recordset.map((row) => {
+      let parsedNotes: { patientName?: string; phone?: string; specialty?: string; symptoms?: string } = {}
+      try {
+        if (row.notes) parsedNotes = JSON.parse(row.notes)
+      } catch {
+        parsedNotes = { symptoms: row.notes }
+      }
+
+      const d = new Date(row.scheduled_at)
+      return {
+        id: row.id,
+        userId: row.user_id,
+        patientName: parsedNotes.patientName || 'Bệnh nhân',
+        patientPhone: parsedNotes.phone || '',
+        counselor: row.expert_name,
+        specialty: parsedNotes.specialty || 'Tư vấn Tâm lý',
+        symptoms: parsedNotes.symptoms || '',
+        scheduledAt: row.scheduled_at,
+        date: formatDateVN(d),
+        dateIso: formatDateISO(d),
+        time: formatHHMM(d),
+        mode: row.mode as 'online' | 'offline',
+        status: row.status as 'pending' | 'confirmed' | 'cancelled' | 'completed',
+      }
+    })
+
+    return NextResponse.json(appointments)
+  } catch (error) {
+    console.error('[MIND-CARE GET BOOKINGS]', error)
+    return NextResponse.json({ message: 'Không thể truy vấn danh sách lịch hẹn.' }, { status: 503 })
+  }
 }
 
 export async function POST(request: Request) {
-  const session = await currentSession(); if (!session) return NextResponse.json({ message: 'Bạn cần đăng nhập.' }, { status: 401 })
-  try { const booking=await request.json(); const scheduledAt=new Date(booking.scheduledAt); const phone=String(booking.patientPhone||'').replace(/[\s.-]/g,''); if(!booking.patientName?.trim()||!/^((0)|\+84)[0-9]{9,10}$/.test(phone)||!booking.selectedCounselor?.trim()||Number.isNaN(scheduledAt.getTime())) return NextResponse.json({message:'Thông tin người khám hoặc lịch hẹn chưa hợp lệ.'},{status:400}); const id=randomUUID(); const notes=JSON.stringify({patientName:booking.patientName.trim(),phone,specialty:booking.selectedSpecialty,counselorTitle:booking.counselorTitle||'',symptoms:booking.symptoms||''}); await (await getDb()).request().input('id',sql.UniqueIdentifier,id).input('userId',sql.UniqueIdentifier,session.userId).input('expertName',sql.NVarChar(255),booking.selectedCounselor.trim()).input('scheduledAt',sql.DateTime2,scheduledAt).input('mode',sql.NVarChar(20),booking.mode==='offline'?'offline':'online').input('notes',sql.NVarChar(sql.MAX),notes).query('INSERT INTO appointments(id,user_id,expert_name,scheduled_at,mode,notes) VALUES(@id,@userId,@expertName,@scheduledAt,@mode,@notes)'); return NextResponse.json({ok:true,bookingId:id},{status:201}) } catch(error) { console.error('[MIND-CARE BOOKING]',error); return NextResponse.json({message:'Không thể lưu lịch hẹn vào cơ sở dữ liệu.'},{status:503}) }
+  const session = await readSessionToken((await cookies()).get('auth_session')?.value)
+  if (!session) return NextResponse.json({ message: 'Bạn cần đăng nhập để đặt lịch.' }, { status: 401 })
+
+  try {
+    const booking = await request.json()
+    const scheduledAt = new Date(booking.scheduledAt)
+
+    if (
+      !booking.patientName?.trim() ||
+      !booking.patientPhone?.trim() ||
+      !booking.selectedCounselor?.trim() ||
+      Number.isNaN(scheduledAt.getTime())
+    ) {
+      return NextResponse.json({ message: 'Thông tin lịch hẹn chưa hợp lệ.' }, { status: 400 })
+    }
+
+    const pool = await getDb()
+    const dbUserId = await getOrEnsureDbUserId(pool, session)
+
+    // Conflict check: Check if this counselor already has a pending or confirmed booking at exact scheduledAt
+    const conflictResult = await pool
+      .request()
+      .input('expertName', sql.NVarChar(255), booking.selectedCounselor.trim())
+      .input('scheduledAt', sql.DateTime2, scheduledAt)
+      .query(
+        `SELECT TOP 1 id 
+         FROM appointments 
+         WHERE expert_name = @expertName 
+           AND scheduled_at = @scheduledAt 
+           AND status IN ('pending', 'confirmed')`
+      )
+
+    if (conflictResult.recordset.length > 0) {
+      return NextResponse.json(
+        { message: 'Khung giờ này đã có bệnh nhân khác đặt với chuyên gia. Vui lòng chọn khung giờ khác.' },
+        { status: 409 }
+      )
+    }
+
+    const id = randomUUID()
+    const notes = JSON.stringify({
+      patientName: booking.patientName.trim(),
+      phone: booking.patientPhone.trim(),
+      specialty: booking.selectedSpecialty || '',
+      symptoms: booking.symptoms || '',
+    })
+
+    await pool
+      .request()
+      .input('id', sql.UniqueIdentifier, id)
+      .input('userId', sql.UniqueIdentifier, dbUserId)
+      .input('expertName', sql.NVarChar(255), booking.selectedCounselor.trim())
+      .input('scheduledAt', sql.DateTime2, scheduledAt)
+      .input('mode', sql.NVarChar(20), booking.mode === 'offline' ? 'offline' : 'online')
+      .input('notes', sql.NVarChar(sql.MAX), notes)
+      .query(
+        `INSERT INTO appointments(id, user_id, expert_name, scheduled_at, mode, status, notes) 
+         VALUES(@id, @userId, @expertName, @scheduledAt, @mode, 'pending', @notes)`
+      )
+
+    return NextResponse.json({ ok: true, bookingId: id }, { status: 201 })
+  } catch (error) {
+    console.error('[MIND-CARE POST BOOKING]', error)
+    return NextResponse.json({ message: 'Không thể lưu lịch hẹn vào database.' }, { status: 503 })
+  }
 }
 
 export async function PATCH(request: Request) {
-  const session = await currentSession(); if (!session || session.role !== 'counselor') return NextResponse.json({ message: 'Bạn không có quyền.' }, { status: 403 })
-  const body = await request.json().catch(() => ({})); if (!body.bookingId || !body.summary?.trim()) return NextResponse.json({ message: 'Thiếu lịch hẹn hoặc ghi chú.' }, { status: 400 })
-  const pool = await getDb(); const transaction = new sql.Transaction(pool); await transaction.begin()
+  const session = await readSessionToken((await cookies()).get('auth_session')?.value)
+  if (!session) return NextResponse.json({ message: 'Bạn cần đăng nhập.' }, { status: 401 })
+
   try {
-    const assigned = await new sql.Request(transaction).input('bookingId', sql.UniqueIdentifier, body.bookingId).input('counselorId', sql.UniqueIdentifier, session.userId).query(`SELECT a.user_id FROM appointments a JOIN profiles p ON p.user_id=@counselorId WHERE a.id=@bookingId AND a.expert_name=p.full_name`)
-    if (!assigned.recordset[0]) { await transaction.rollback(); return NextResponse.json({ message: 'Lịch hẹn không thuộc chuyên viên này.' }, { status: 403 }) }
-    await new sql.Request(transaction).input('id',sql.UniqueIdentifier,randomUUID()).input('bookingId',sql.UniqueIdentifier,body.bookingId).input('userId',sql.UniqueIdentifier,assigned.recordset[0].user_id).input('counselorId',sql.UniqueIdentifier,session.userId).input('summary',sql.NVarChar(sql.MAX),body.summary.trim()).query(`IF NOT EXISTS(SELECT 1 FROM clinical_records WHERE booking_id=@bookingId) INSERT INTO clinical_records(id,booking_id,user_id,counselor_id,summary) VALUES(@id,@bookingId,@userId,@counselorId,@summary); UPDATE appointments SET status='completed' WHERE id=@bookingId`)
-    await transaction.commit(); return NextResponse.json({ success: true })
-  } catch (error) { await transaction.rollback(); console.error('[MIND-CARE BOOKING PATCH]', error); return NextResponse.json({ message: 'Không thể hoàn tất buổi khám.' }, { status: 503 }) }
+    const { bookingId, status } = await request.json()
+
+    if (!bookingId || !['pending', 'confirmed', 'cancelled', 'completed'].includes(status)) {
+      return NextResponse.json({ message: 'Dữ liệu cập nhật trạng thái không hợp lệ.' }, { status: 400 })
+    }
+
+    if (UUID_REGEX.test(bookingId)) {
+      const pool = await getDb()
+      await pool
+        .request()
+        .input('id', sql.UniqueIdentifier, bookingId)
+        .input('status', sql.NVarChar(20), status)
+        .query(`UPDATE appointments SET status = @status WHERE id = @id`)
+    }
+
+    return NextResponse.json({ ok: true, bookingId, status })
+  } catch (error) {
+    console.error('[MIND-CARE PATCH BOOKING]', error)
+    return NextResponse.json({ message: 'Không thể cập nhật trạng thái lịch hẹn.' }, { status: 503 })
+  }
 }
+

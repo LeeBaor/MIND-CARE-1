@@ -1,23 +1,48 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { Calendar as CalendarIcon, Clock, User, ChevronDown, Check, ArrowLeft, ArrowRight, ShieldCheck, Heart } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Calendar as CalendarIcon, Clock, User, ChevronDown, Check, ArrowLeft, ArrowRight, ShieldCheck, Heart, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { getDoctors, saveBooking } from '@/lib/mind-care-store'
 
-const EXPERTS = [
-  { name: 'ThS. Nguyễn Minh An', title: 'Thạc sĩ Tâm lý lâm sàng', specialty: 'CK. Tư vấn Trầm cảm & Lo âu' },
-  { name: 'BS. Trần Thu Hà', title: 'Bác sĩ Chuyên khoa II', specialty: 'CK. Rối loạn Giấc ngủ & Stress' },
-  { name: 'Chuyên gia Lê Gia Hân', title: 'Chuyên gia Trị liệu tâm lý', specialty: 'CK. Tâm lý Học đường & Giới trẻ' },
-  { name: 'Đặng Hiếu', title: 'Chuyên viên Tâm lý học đường', specialty: 'CK. Tâm lý Học đường & Giới trẻ' },
-]
+interface ExpertItem {
+  id: string
+  name: string
+  specialty?: string
+  email?: string
+}
 
-const DATES = Array.from({ length: 14 }, (_, index) => {
-  const value = new Date(); value.setDate(value.getDate() + index + 1); return value
-}).filter(value => value.getDay() !== 0 && value.getDay() !== 6).slice(0, 8).map(value => {
-  const date = value.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })
-  const day = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][value.getDay()]
-  return { day, date, year: String(value.getFullYear()), full: value.toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }) }
-})
+interface DateOption {
+  day: string
+  date: string
+  full: string
+  isoDate: string
+}
+
+function getDynamicDates(): DateOption[] {
+  const daysOfWeek = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
+  const fullDays = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy']
+  const result: DateOption[] = []
+  const today = new Date()
+
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(today)
+    d.setDate(today.getDate() + i)
+    const dayOfWeek = daysOfWeek[d.getDay()]
+    const fullDayOfWeek = fullDays[d.getDay()]
+    const dd = d.getDate().toString().padStart(2, '0')
+    const mm = (d.getMonth() + 1).toString().padStart(2, '0')
+    const yyyy = d.getFullYear()
+    
+    result.push({
+      day: dayOfWeek,
+      date: `${dd}/${mm}`,
+      full: `${fullDayOfWeek}, ${dd}/${mm}/${yyyy}`,
+      isoDate: `${yyyy}-${mm}-${dd}`,
+    })
+  }
+  return result
+}
 
 const DEPARTMENTS = [
   {
@@ -32,58 +57,139 @@ const DEPARTMENTS = [
   },
 ]
 
-const TIME_SLOTS = ['07:30', '08:30', '09:30', '10:30', '13:30', '14:30', '15:30']
+const TIME_SLOTS = [
+  '06:15', '07:45', '08:00', '09:00',
+  '13:00', '13:45', '15:15', '15:45',
+  '16:15', '16:45',
+]
 
 export function BookingFlow() {
   const [step, setStep] = useState(2)
-  const [selectedDate, setSelectedDate] = useState(DATES[0])
+  const [experts, setExperts] = useState<ExpertItem[]>([])
+  const [loadingExperts, setLoadingExperts] = useState(true)
+  const [dates, setDates] = useState<DateOption[]>([])
+  const [selectedDate, setSelectedDate] = useState<DateOption>({ day: '', date: '', full: '', isoDate: '' })
   const [selectedSpecialty, setSelectedSpecialty] = useState('CK. Tư vấn Trầm cảm & Lo âu')
-  const [selectedTime, setSelectedTime] = useState('07:30')
-  const [selectedCounselor, setSelectedCounselor] = useState('ThS. Nguyễn Minh An')
+  const [selectedTime, setSelectedTime] = useState('09:00')
+  const [busySlots, setBusySlots] = useState<string[]>([])
+  const [loadingSlots, setLoadingSlots] = useState(false)
+  const [selectedCounselor, setSelectedCounselor] = useState('')
   const [sessionMode, setSessionMode] = useState<'online' | 'offline'>('online')
   const [patientName, setPatientName] = useState('')
   const [patientPhone, setPatientPhone] = useState('')
   const [symptoms, setSymptoms] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [bookingError, setBookingError] = useState('')
-  const selectedExpert = useMemo(() => EXPERTS.find(expert => expert.name === selectedCounselor) || EXPERTS[0], [selectedCounselor])
-  const validPhone = /^(0|\+84)[0-9]{9,10}$/.test(patientPhone.replace(/[\s.-]/g, ''))
 
   useEffect(() => {
-    fetch('/api/profile').then(response => response.ok ? response.json() : Promise.reject()).then(profile => {
-      setPatientName(profile.fullName || '')
-      setPatientPhone(profile.phone || '')
-    }).catch(() => undefined)
+    const generatedDates = getDynamicDates()
+    setDates(generatedDates)
+    setSelectedDate(generatedDates[0])
+
+    // Load initial doctor list from local store (includes default & admin-created doctors)
+    const localDocs: ExpertItem[] = getDoctors().map((d) => ({
+      id: d.id,
+      name: d.name,
+      specialty: d.specialty,
+      email: d.email,
+    }))
+
+    if (localDocs.length > 0) {
+      setExperts(localDocs)
+      setSelectedCounselor(localDocs[0].name)
+    }
+
+    fetch('/api/experts')
+      .then((res) => (res.ok ? res.json() : []))
+      .then((apiData: ExpertItem[]) => {
+        if (Array.isArray(apiData) && apiData.length > 0) {
+          const combined = [...localDocs]
+          apiData.forEach((exp) => {
+            if (!combined.some((e) => e.name.trim().toLowerCase() === exp.name.trim().toLowerCase())) {
+              combined.push(exp)
+            }
+          })
+          setExperts(combined)
+          setSelectedCounselor((prev) => prev || combined[0].name)
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoadingExperts(false))
   }, [])
 
-  useEffect(() => { setSelectedSpecialty(selectedExpert.specialty) }, [selectedExpert])
+  // Fetch busy slots whenever counselor or date changes
+  useEffect(() => {
+    if (!selectedCounselor || !selectedDate.isoDate) return
+    setLoadingSlots(true)
+    fetch(`/api/bookings?counselor=${encodeURIComponent(selectedCounselor)}&date=${encodeURIComponent(selectedDate.isoDate)}&action=busySlots`)
+      .then((res) => (res.ok ? res.json() : { busySlots: [] }))
+      .then((data) => {
+        if (Array.isArray(data.busySlots)) {
+          setBusySlots(data.busySlots)
+          // If selected time is busy, reset selectedTime to first available time
+          if (data.busySlots.includes(selectedTime)) {
+            const firstAvailable = TIME_SLOTS.find((t) => !data.busySlots.includes(t))
+            if (firstAvailable) setSelectedTime(firstAvailable)
+          }
+        } else {
+          setBusySlots([])
+        }
+      })
+      .catch(() => setBusySlots([]))
+      .finally(() => setLoadingSlots(false))
+  }, [selectedCounselor, selectedDate])
 
   async function confirmBooking() {
     setSubmitting(true)
     setBookingError('')
-    const [day, month] = selectedDate.date.split('/')
-    const year = selectedDate.year
+    const isoDateStr = selectedDate.isoDate || new Date().toISOString().split('T')[0]
+    const scheduledAt = `${isoDateStr}T${selectedTime}:00+07:00`
+
     const response = await fetch('/api/bookings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ patientName, patientPhone, symptoms, selectedCounselor, counselorTitle: selectedExpert.title, selectedSpecialty, mode: sessionMode, scheduledAt: `${year}-${month}-${day}T${selectedTime}:00+07:00` }),
+      body: JSON.stringify({
+        patientName,
+        patientPhone,
+        symptoms,
+        selectedCounselor,
+        selectedSpecialty,
+        mode: sessionMode,
+        scheduledAt,
+      }),
     }).catch(() => null)
+
     setSubmitting(false)
     if (!response?.ok) {
       const payload = response ? await response.json().catch(() => ({})) : {}
-      setBookingError(payload.message || 'Không thể đặt lịch. Vui lòng thử lại.')
+      setBookingError(payload.message || 'Khung giờ này không thể đặt. Vui lòng thử lại.')
       return
     }
+
+    const persisted = await response.json()
+    saveBooking({
+      id: persisted.bookingId,
+      patientName: patientName.trim(),
+      patientPhone: patientPhone.trim(),
+      symptoms: symptoms.trim(),
+      patientEmail: document.cookie.split('; ').find((value) => value.startsWith('user_email='))?.split('=')[1] || '',
+      counselor: selectedCounselor,
+      specialty: selectedSpecialty,
+      date: selectedDate.full,
+      time: selectedTime,
+      mode: sessionMode,
+      status: 'pending',
+    })
     setStep(4)
   }
 
   return (
     <div className="mx-auto max-w-xl px-2 py-4 sm:px-4">
-      {/* Container Frame styled after Bach Mai App Mobile Window */}
+      {/* Container Frame */}
       <div className="rounded-3xl border border-slate-200 bg-white p-4 sm:p-6 shadow-xl">
         {/* Step Indicator Header (1 - 2 - 3 - 4) */}
         <div className="mb-6 flex items-center justify-center gap-2 sm:gap-4">
-          {[2, 3, 4].map((i, index) => (
+          {[1, 2, 3, 4].map((i) => (
             <div key={i} className="flex items-center">
               <div
                 className={cn(
@@ -95,7 +201,7 @@ export function BookingFlow() {
                     : 'bg-slate-100 text-slate-400'
                 )}
               >
-                {step > i ? <Check className="h-5 w-5" /> : index + 1}
+                {step > i ? <Check className="h-5 w-5" /> : i}
               </div>
               {i < 4 && (
                 <div
@@ -110,21 +216,77 @@ export function BookingFlow() {
         </div>
 
         <h2 className="mb-4 text-center font-heading text-xl font-bold text-teal-900">
+          {step === 1 && 'Chọn Khoa Khám & Chuyên Gia'}
           {step === 2 && 'Đặt lịch theo chuyên khoa'}
           {step === 3 && 'Điền thông tin người khám'}
           {step === 4 && 'Xác nhận phiếu hẹn tư vấn'}
         </h2>
 
-        {/* STEP 2: Main Bach Mai Style Selection */}
+        {/* STEP 1: Choose Doctor Cards */}
+        {step === 1 && (
+          <div className="space-y-3">
+            <p className="text-xs text-slate-500 text-center mb-2">Vui lòng chọn bác sĩ / chuyên gia tư vấn phù hợp:</p>
+            <div className="grid grid-cols-1 gap-3 max-h-80 overflow-y-auto pr-1">
+              {experts.map((exp) => (
+                <div
+                  key={exp.id || exp.name}
+                  onClick={() => {
+                    setSelectedCounselor(exp.name)
+                    setStep(2)
+                  }}
+                  className={cn(
+                    'cursor-pointer rounded-2xl border p-4 transition-all hover:border-teal-500 hover:shadow-md flex items-center justify-between',
+                    selectedCounselor === exp.name
+                      ? 'border-teal-600 bg-teal-50/70 ring-2 ring-teal-200'
+                      : 'border-slate-200 bg-white'
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-teal-600 text-white font-extrabold text-xs shrink-0">
+                      BS
+                    </div>
+                    <div>
+                      <strong className="block text-sm font-bold text-slate-900">{exp.name}</strong>
+                      <span className="text-xs text-teal-700 font-semibold">{exp.specialty || 'Tư vấn Sức khỏe Tinh thần'}</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="rounded-xl bg-teal-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-teal-700"
+                  >
+                    Chọn
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* STEP 2: Selection */}
         {step === 2 && (
           <div className="space-y-4">
             <div>
-              <label className="mb-1 block text-xs font-semibold text-slate-500">Chuyên gia / Thầy cô mong muốn</label>
-              <select value={selectedCounselor} onChange={(e) => setSelectedCounselor(e.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 focus:border-teal-600 focus:outline-none">
-                {EXPERTS.map(expert => <option key={expert.name} value={expert.name}>{expert.name}</option>)}
+              <label className="mb-1 block text-xs font-semibold text-slate-500">Chuyên gia mong muốn</label>
+              <select
+                value={selectedCounselor}
+                onChange={(e) => setSelectedCounselor(e.target.value)}
+                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 focus:border-teal-600 focus:outline-none"
+              >
+                {loadingExperts && experts.length === 0 ? (
+                  <option value="">Đang tải danh sách chuyên gia...</option>
+                ) : experts.length > 0 ? (
+                  experts.map((exp) => (
+                    <option key={exp.id || exp.name} value={exp.name}>
+                      {exp.name} {exp.specialty ? `(${exp.specialty})` : ''}
+                    </option>
+                  ))
+                ) : (
+                  <option value="ThS. Nguyễn Minh An">ThS. Nguyễn Minh An (Tham vấn Lo âu & Trầm cảm)</option>
+                )}
               </select>
-              <p className="mt-1 text-[11px] text-slate-500">Chọn chuyên gia phù hợp với nhu cầu của bạn.</p>
+              <p className="mt-1 text-[11px] text-slate-500">Chọn chuyên gia từ danh sách dữ liệu hệ thống.</p>
             </div>
+
             <div>
               <label className="mb-1 block text-xs font-semibold text-slate-500">Hình thức tham vấn</label>
               <div className="grid grid-cols-2 gap-2">
@@ -135,21 +297,17 @@ export function BookingFlow() {
                 ))}
               </div>
             </div>
-              {/* Chức danh lấy trực tiếp từ hồ sơ chuyên gia đã chọn. */}
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-slate-500">Chức danh Chuyên gia</label>
-              <div className="rounded-xl border border-teal-200 bg-teal-50 px-4 py-2.5 text-sm font-bold text-teal-800">{selectedExpert.title}</div>
-            </div>
 
             {/* Horizontal Date Selector */}
             <div>
               <label className="mb-1 block text-xs font-semibold text-slate-500">Chọn Ngày Khám</label>
               <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
-                {DATES.map((d) => {
-                  const isSelected = selectedDate.date === d.date
+                {dates.map((d) => {
+                  const isSelected = selectedDate.isoDate === d.isoDate
                   return (
                     <button
-                      key={d.date}
+                      key={d.isoDate || d.date}
+                      type="button"
                       onClick={() => setSelectedDate(d)}
                       className={cn(
                         'flex flex-col items-center justify-center rounded-xl px-3.5 py-2 min-w-[70px] border transition-all',
@@ -174,26 +332,38 @@ export function BookingFlow() {
               </div>
 
               <div className="p-3 space-y-2">
-                <select value={selectedSpecialty} onChange={event => setSelectedSpecialty(event.target.value)} className="w-full rounded-lg bg-emerald-100/70 px-3 py-2 text-xs font-bold text-emerald-900 outline-none">{DEPARTMENTS[0].specialties.map(item => <option key={item.id} value={item.name}>{item.name}</option>)}</select>
+                <div className="bg-emerald-100/70 text-emerald-900 px-3 py-2 rounded-lg font-bold text-xs flex items-center justify-between">
+                  <span>{selectedSpecialty}</span>
+                  <ChevronDown className="h-4 w-4" />
+                </div>
 
                 {/* Time Slots Grid */}
                 <div className="pt-2">
-                  <span className="text-xs font-semibold text-slate-500 mb-2 block">Khung giờ làm việc của phòng tư vấn trường học (Thứ 2–Thứ 6):</span>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-semibold text-slate-500">Chọn khung giờ khả dụng:</span>
+                    {loadingSlots && <span className="text-[11px] text-teal-600 animate-pulse">Đang kiểm tra lịch...</span>}
+                  </div>
                   <div className="grid grid-cols-4 gap-2 sm:grid-cols-4">
                     {TIME_SLOTS.map((t) => {
                       const isSelected = selectedTime === t
+                      const isBusy = busySlots.includes(t)
                       return (
                         <button
                           key={t}
-                          onClick={() => setSelectedTime(t)}
+                          type="button"
+                          disabled={isBusy}
+                          onClick={() => !isBusy && setSelectedTime(t)}
                           className={cn(
-                            'rounded-xl py-2 text-xs font-bold border transition-all text-center',
-                            isSelected
+                            'rounded-xl py-2 text-xs font-bold border transition-all text-center flex flex-col items-center justify-center',
+                            isBusy
+                              ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed line-through opacity-70'
+                              : isSelected
                               ? 'bg-teal-600 text-white border-teal-600 ring-2 ring-teal-200 shadow-sm'
                               : 'bg-white text-slate-700 border-slate-200 hover:border-teal-400 hover:bg-teal-50/50'
                           )}
                         >
-                          {t}
+                          <span>{t}</span>
+                          {isBusy && <span className="text-[9px] font-normal no-underline text-rose-500">Đã đặt</span>}
                         </button>
                       );
                     })}
@@ -219,14 +389,11 @@ export function BookingFlow() {
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">Số điện thoại liên hệ</label>
               <input
-                type="tel"
-                inputMode="tel"
-                placeholder="Ví dụ: 0912345678"
+                type="text"
                 value={patientPhone}
                 onChange={(e) => setPatientPhone(e.target.value)}
                 className="w-full rounded-xl border border-slate-300 p-2.5 text-sm font-semibold text-slate-800 focus:border-teal-600 focus:outline-none"
               />
-              {patientPhone && !validPhone && <p className="mt-1 text-xs font-semibold text-rose-600">Số điện thoại chưa đúng định dạng Việt Nam.</p>}
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">Mô tả lý do / Trạng thái sức khỏe tinh thần</label>
@@ -242,54 +409,41 @@ export function BookingFlow() {
 
         {/* STEP 4: Success Ticket */}
         {step === 4 && (
-          <div className="rounded-2xl border-2 border-dashed border-teal-200 bg-emerald-50/40 p-5 text-center">
-            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-teal-600 text-white shadow-lg">
-              <ShieldCheck className="h-8 w-8" />
+          <div className="rounded-2xl border border-teal-200 bg-emerald-50/40 p-4 text-center">
+            <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-teal-600 text-white shadow-sm">
+              <ShieldCheck className="h-6 w-6" />
             </div>
-            <h3 className="font-heading text-lg font-extrabold text-teal-900">Đặt Lịch Thành Công!</h3>
-            <p className="mt-1 text-xs text-slate-600">Phòng khám Mind Care đã ghi nhận lịch hẹn của bạn.</p>
+            <h3 className="font-heading text-base font-extrabold text-teal-900">Đặt Lịch Thành Công!</h3>
+            <p className="mt-0.5 text-xs text-slate-600">Lịch hẹn đã được gửi đến bác sĩ/chuyên gia và đang chờ duyệt.</p>
 
-            <div className="mt-4 rounded-xl bg-white p-4 text-left text-xs space-y-2 border border-emerald-100 shadow-xs">
+            <div className="mt-3 rounded-xl bg-white p-3 text-left text-xs space-y-1.5 border border-slate-200">
               <div className="flex justify-between border-b border-slate-100 pb-1">
-                <span className="text-slate-500">Mã phiếu hẹn:</span>
-                <span className="font-extrabold text-teal-700">MC-2025-8892</span>
+                <span className="text-slate-500">Trạng thái:</span>
+                <span className="font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded text-[10px]">Chờ bác sĩ duyệt</span>
               </div>
               <div className="flex justify-between border-b border-slate-100 pb-1">
                 <span className="text-slate-500">Họ và tên:</span>
-                <span className="font-bold text-slate-800">{patientName}</span>
+                <span className="font-semibold text-slate-800">{patientName}</span>
               </div>
               <div className="flex justify-between border-b border-slate-100 pb-1">
-                <span className="text-slate-500">Ngày tư vấn:</span>
-                <span className="font-bold text-slate-800">{selectedDate.full}</span>
-              </div>
-              <div className="flex justify-between border-b border-slate-100 pb-1">
-                <span className="text-slate-500">Khung giờ:</span>
-                <span className="font-bold text-emerald-700">{selectedTime}</span>
-              </div>
-              <div className="flex justify-between border-b border-slate-100 pb-1">
-                <span className="text-slate-500">Chuyên gia:</span>
-                <span className="font-bold text-slate-800">{selectedCounselor}</span>
-              </div>
-              <div className="flex justify-between border-b border-slate-100 pb-1">
-                <span className="text-slate-500">Chức danh:</span>
-                <span className="font-bold text-slate-800">{selectedExpert.title}</span>
+                <span className="text-slate-500">Thời gian:</span>
+                <span className="font-bold text-teal-700">{selectedDate.date} lúc {selectedTime}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Chuyên khoa:</span>
-                <span className="font-bold text-slate-800">{selectedSpecialty}</span>
+                <span className="text-slate-500">Chuyên gia:</span>
+                <span className="font-semibold text-slate-800">{selectedCounselor}</span>
               </div>
             </div>
           </div>
         )}
-
-        {/* Bottom Navigation Buttons (Quay lại / Tiếp theo) */}
         <div className="mt-6 flex items-center justify-between gap-4 pt-4 border-t border-slate-100">
           <button
+            type="button"
             onClick={() => setStep((prev) => Math.max(1, prev - 1))}
-            disabled={step === 2}
+            disabled={step === 1}
             className={cn(
               'flex items-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-bold border transition-all',
-              step === 2
+              step === 1
                 ? 'opacity-40 cursor-not-allowed border-slate-200 text-slate-400'
                 : 'border-teal-600 bg-white text-teal-700 hover:bg-teal-50'
             )}
@@ -299,7 +453,8 @@ export function BookingFlow() {
           </button>
 
           <button
-            disabled={submitting || (step === 3 && (!patientName.trim() || !validPhone || !selectedCounselor))}
+            type="button"
+            disabled={submitting || (step === 2 && busySlots.includes(selectedTime)) || (step === 3 && (!patientName.trim() || !patientPhone.trim() || !selectedCounselor))}
             onClick={() => {
               if (step === 3) { void confirmBooking() }
               else if (step < 4) setStep((prev) => prev + 1)
@@ -311,8 +466,14 @@ export function BookingFlow() {
             <ArrowRight className="h-4 w-4" />
           </button>
         </div>
-        {bookingError && <p role="alert" className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-700">{bookingError}</p>}
+        {bookingError && (
+          <div className="mt-3 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-700">
+            <AlertCircle className="h-5 w-5 shrink-0 mt-0.5 text-rose-600" />
+            <span>{bookingError}</span>
+          </div>
+        )}
       </div>
     </div>
   )
 }
+
