@@ -7,9 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "setup": "npm install && npm run db:migrate",
-    "setup:dev": "npm install && npm run db:migrate && npm run dev",
-    "db:migrate": "node --env-file=.env.local scripts/migrate.mjs"
+    "setup": "npm install && npm run db:migrate && npm run db:seed",
+    "setup:dev": "npm install && npm run db:migrate && npm run db:seed && npm run dev",
+    "db:migrate": "node --env-file=.env.local scripts/migrate.mjs",
+    "db:seed": "node --env-file=.env.local scripts/seed-users.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

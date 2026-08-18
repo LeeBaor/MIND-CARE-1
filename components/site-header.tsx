@@ -46,18 +46,15 @@ export function SiteHeader({ active = 'home' }: SiteHeaderProps) {
     { key: 'booking', label: 'Đặt lịch khám', href: '/booking' },
     { key: 'assessment', label: 'Trắc nghiệm tâm lý', href: '/assessment' },
     { key: 'results', label: 'Kết quả & Hồ sơ', href: '/results' },
-    { key: 'profile', label: 'Trang cá nhân', href: '/profile' },
   ]
 
   const adminNav = [
     { key: 'admin', label: 'Quản trị Admin', href: '/admin' },
     { key: 'counselor', label: 'Trang Chuyên viên', href: '/counselor' },
-    { key: 'profile', label: 'Trang cá nhân', href: '/profile' },
   ]
 
   const counselorNav = [
     { key: 'counselor', label: 'Trang Chuyên viên', href: '/counselor' },
-    { key: 'profile', label: 'Trang cá nhân', href: '/profile' },
   ]
 
   const nav = role === 'admin' ? adminNav : role === 'counselor' ? counselorNav : patientNav
@@ -72,18 +69,18 @@ export function SiteHeader({ active = 'home' }: SiteHeaderProps) {
   return (
     <>
       <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 bg-white/95 backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-          <Link href="/" className="flex items-center gap-2.5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-600 text-white shadow-md shadow-teal-600/20">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 gap-4">
+          <Link href="/" className="flex items-center gap-2.5 shrink-0">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-600 text-white shadow-md shadow-teal-600/20 shrink-0">
               <Heart className="h-5 w-5 fill-white/20 stroke-[2.5]" />
             </div>
-            <div className="flex flex-col">
+            <div className="flex flex-col whitespace-nowrap">
               <span className="font-heading text-lg font-extrabold text-teal-900 tracking-tight">MIND CARE</span>
               <span className="text-[9px] font-bold tracking-widest text-teal-600 uppercase">TƯ VẤN SỨC KHỎE TINH THẦN</span>
             </div>
           </Link>
 
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="hidden lg:flex items-center gap-1 xl:gap-2">
             {nav.map((item) => {
               const isActive = active === item.key || pathname === item.href
               return (
@@ -91,7 +88,7 @@ export function SiteHeader({ active = 'home' }: SiteHeaderProps) {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    'px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all',
+                    'px-3.5 py-2 rounded-xl text-xs xl:text-sm font-extrabold whitespace-nowrap transition-all shrink-0',
                     isActive
                       ? 'bg-teal-50 text-teal-700 font-extrabold shadow-2xs'
                       : 'text-slate-600 hover:text-teal-700 hover:bg-slate-50'
@@ -103,13 +100,13 @@ export function SiteHeader({ active = 'home' }: SiteHeaderProps) {
             })}
           </nav>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3 shrink-0">
             {isLoggedIn ? (
               <>
                 {/* Notification Bell */}
                 <Link
                   href="/notifications"
-                  className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700 transition-colors"
+                  className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700 transition-colors shrink-0"
                   title="Thông báo"
                 >
                   <Bell className="h-5 w-5" />
@@ -122,16 +119,16 @@ export function SiteHeader({ active = 'home' }: SiteHeaderProps) {
                 {/* Profile Avatar Direct Link - Always links to /profile */}
                 <Link
                   href="/profile"
-                  className="flex items-center gap-2.5 rounded-2xl border border-teal-200 bg-teal-50/80 hover:bg-teal-100/80 p-1.5 pr-3 transition-all hover:scale-[1.02] shadow-xs cursor-pointer group"
+                  className="flex items-center gap-2.5 rounded-2xl border border-teal-200 bg-teal-50/80 hover:bg-teal-100/80 p-1.5 pr-3 transition-all hover:scale-[1.02] shadow-xs cursor-pointer group shrink-0"
                   title="Mở trang Hồ sơ cá nhân & Đăng xuất"
                 >
-                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-teal-600 text-white font-extrabold text-xs shadow-sm group-hover:bg-teal-700 transition-colors">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-teal-600 text-white font-extrabold text-xs shadow-sm group-hover:bg-teal-700 transition-colors shrink-0">
                     {role === 'admin' ? 'AD' : role === 'counselor' ? 'BS' : initials}
                   </div>
-                  <div className="hidden sm:flex flex-col text-left text-xs">
+                  <div className="hidden sm:flex flex-col text-left text-xs whitespace-nowrap">
                     <span className="font-bold text-teal-950 line-clamp-1">{userName || 'Tài khoản'}</span>
                     <span className="text-[10px] text-teal-700 font-semibold">
-                      {role === 'admin' ? 'Quản trị viên (Admin)' : role === 'counselor' ? 'Bác sĩ / Chuyên gia' : 'Trang Hồ sơ cá nhân'}
+                      {role === 'admin' ? 'Quản trị viên' : role === 'counselor' ? 'Bác sĩ / Chuyên gia' : 'Hồ sơ cá nhân'}
                     </span>
                   </div>
                 </Link>
@@ -140,14 +137,14 @@ export function SiteHeader({ active = 'home' }: SiteHeaderProps) {
               <>
                 <Link
                   href="/login"
-                  className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold text-teal-700 transition-colors hover:bg-teal-50"
+                  className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold text-teal-700 transition-colors hover:bg-teal-50 whitespace-nowrap shrink-0"
                 >
                   <UserRound className="h-4 w-4" />
                   Đăng nhập
                 </Link>
                 <Link
                   href="/register"
-                  className="rounded-xl bg-teal-600 px-3 py-2 text-sm font-bold text-white shadow-sm transition-colors hover:bg-teal-700"
+                  className="rounded-xl bg-teal-600 px-3 py-2 text-sm font-bold text-white shadow-sm transition-colors hover:bg-teal-700 whitespace-nowrap shrink-0"
                 >
                   Tạo tài khoản
                 </Link>

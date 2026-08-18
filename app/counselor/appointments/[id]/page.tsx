@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, Bell, Calendar, CheckCircle2, FileText, Pill, Send, UserRound, XCircle, Phone, Clock, AlertCircle, ShieldCheck } from 'lucide-react'
-import { SiteHeader } from '@/components/site-header'
+import { DoctorHeader } from '@/components/doctor-header'
 import { SiteFooter } from '@/components/site-footer'
 import { getBookings, saveCarePlan, saveClinicalRecord, updateBooking, type MindBooking } from '@/lib/mind-care-store'
 
@@ -116,7 +116,7 @@ export default function CounselorAppointmentDetailPage() {
   if (loading) {
     return (
       <div className="flex min-h-screen flex-col bg-[#f4fbf6]">
-        <SiteHeader active="dashboard" />
+        <DoctorHeader active="schedule" />
         <main className="flex-1 flex items-center justify-center p-8 text-teal-700 font-bold text-sm">
           Đang tải thông tin buổi khám...
         </main>
@@ -128,7 +128,7 @@ export default function CounselorAppointmentDetailPage() {
   if (!booking) {
     return (
       <div className="flex min-h-screen flex-col bg-[#f4fbf6]">
-        <SiteHeader active="dashboard" />
+        <DoctorHeader active="schedule" />
         <main className="flex-1 p-6">
           <div className="mx-auto max-w-3xl rounded-3xl bg-white p-8 text-center border border-slate-200 shadow-sm space-y-4">
             <AlertCircle className="mx-auto h-12 w-12 text-rose-500" />
@@ -149,7 +149,7 @@ export default function CounselorAppointmentDetailPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[#f4fbf6]">
-      <SiteHeader active="dashboard" />
+      <DoctorHeader active="schedule" />
       <main className="flex-1 pb-12">
         <div className="mx-auto max-w-5xl space-y-5 px-4 py-6">
           {/* Back button and page title */}

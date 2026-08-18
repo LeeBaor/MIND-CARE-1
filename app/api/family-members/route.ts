@@ -11,7 +11,7 @@ export async function GET() {
   try {
     const pool = await getDb()
     const dbUserId = await getOrEnsureDbUserId(pool, current)
-    const result = await pool.request().input('id',sql.UniqueIdentifier,dbUserId).query('SELECT id,full_name,birth_date,identity_number,phone FROM family_members WHERE user_id=@id ORDER BY created_at'); return NextResponse.json(result.recordset.map(row=>({id:row.id,name:row.full_name,dob:row.birth_date,cccd:row.identity_number||'',phone:row.phone})))
+    const result = await pool.request().input('id',dbUserId).query('SELECT id,full_name,birth_date,identity_number,phone FROM family_members WHERE user_id=@id ORDER BY created_at'); return NextResponse.json(result.recordset.map(row=>({id:row.id,name:row.full_name,dob:row.birth_date,cccd:row.identity_number||'',phone:row.phone})))
   } catch { return NextResponse.json({message:'Không thể tải danh sách người thân.'},{status:503}) }
 }
 export async function POST(request:Request) {
@@ -19,6 +19,6 @@ export async function POST(request:Request) {
   try {
     const pool = await getDb()
     const dbUserId = await getOrEnsureDbUserId(pool, current)
-    const id=randomUUID(); await pool.request().input('id',sql.UniqueIdentifier,id).input('userId',sql.UniqueIdentifier,dbUserId).input('name',sql.NVarChar(255),body.name.trim()).input('dob',sql.Date,body.dob).input('identity',sql.NVarChar(30),body.cccd?.trim()||null).input('phone',sql.NVarChar(30),body.phone.trim()).query('INSERT INTO family_members(id,user_id,full_name,birth_date,identity_number,phone) VALUES(@id,@userId,@name,@dob,@identity,@phone)'); return NextResponse.json({id,name:body.name.trim(),dob:body.dob,cccd:body.cccd||'',phone:body.phone.trim()},{status:201})
+    const id=randomUUID(); await pool.request().input('id',id).input('userId',dbUserId).input('name',body.name.trim()).input('dob',body.dob).input('identity',body.cccd?.trim()||null).input('phone',body.phone.trim()).query('INSERT INTO family_members(id,user_id,full_name,birth_date,identity_number,phone) VALUES(@id,@userId,@name,@dob,@identity,@phone)'); return NextResponse.json({id,name:body.name.trim(),dob:body.dob,cccd:body.cccd||'',phone:body.phone.trim()},{status:201})
   } catch { return NextResponse.json({message:'Không thể thêm người thân.'},{status:503}) }
 }

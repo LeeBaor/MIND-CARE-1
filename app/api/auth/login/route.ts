@@ -17,6 +17,8 @@ export async function POST(request: Request) {
         account = { id: 'admin-001', email: 'admin@mindcare.vn', name: 'Quản trị viên Hệ thống', profileCompleted: true, role: 'admin' }
       } else if ((cleanEmail === 'chuyenvien@mindcare.vn' || cleanEmail === 'bacsi@mindcare.vn') && password === '123456') {
         account = { id: 'doc-001', email: cleanEmail, name: 'ThS. Nguyễn Minh An', profileCompleted: true, role: 'counselor' }
+      } else if ((cleanEmail === 'benhnhan@mindcare.vn' || cleanEmail === 'student@mindcare.vn') && password === '123456') {
+        account = { id: 'stu-001', email: cleanEmail, name: 'Nguyễn Văn An (Bệnh nhân Demo)', profileCompleted: true, role: 'student' }
       }
     }
 

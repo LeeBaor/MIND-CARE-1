@@ -39,7 +39,7 @@ export async function GET(request: Request) {
     if (action === 'busySlots' || (counselor && dateParam)) {
       const result = await pool
         .request()
-        .input('counselor', sql.NVarChar(255), counselor || '')
+        .input('counselor', counselor || '')
         .query(
           `SELECT scheduled_at, status 
            FROM appointments 
@@ -71,13 +71,13 @@ export async function GET(request: Request) {
       query = `SELECT a.id, a.user_id, a.expert_name, a.scheduled_at, a.mode, a.status, a.notes 
                FROM appointments a 
                WHERE a.id = @bookingId`
-      req.input('bookingId', sql.UniqueIdentifier, bookingIdParam)
+      req.input('bookingId', bookingIdParam)
     } else if (counselor) {
       query = `SELECT a.id, a.user_id, a.expert_name, a.scheduled_at, a.mode, a.status, a.notes 
                FROM appointments a 
                WHERE a.expert_name = @counselor 
                ORDER BY a.scheduled_at DESC`
-      req.input('counselor', sql.NVarChar(255), counselor)
+      req.input('counselor', counselor)
     } else if (session) {
       const dbUserId = await getOrEnsureDbUserId(pool, session)
       if (session.role === 'counselor' || session.role === 'admin') {
@@ -90,7 +90,7 @@ export async function GET(request: Request) {
                  FROM appointments a 
                  WHERE a.user_id = @userId 
                  ORDER BY a.scheduled_at DESC`
-        req.input('userId', sql.UniqueIdentifier, dbUserId)
+        req.input('userId', dbUserId)
       }
     } else {
       return NextResponse.json({ message: 'Bạn cần đăng nhập.' }, { status: 401 })
@@ -154,8 +154,8 @@ export async function POST(request: Request) {
     // Conflict check: Check if this counselor already has a pending or confirmed booking at exact scheduledAt
     const conflictResult = await pool
       .request()
-      .input('expertName', sql.NVarChar(255), booking.selectedCounselor.trim())
-      .input('scheduledAt', sql.DateTime2, scheduledAt)
+      .input('expertName', booking.selectedCounselor.trim())
+      .input('scheduledAt', scheduledAt)
       .query(
         `SELECT TOP 1 id 
          FROM appointments 
@@ -181,12 +181,12 @@ export async function POST(request: Request) {
 
     await pool
       .request()
-      .input('id', sql.UniqueIdentifier, id)
-      .input('userId', sql.UniqueIdentifier, dbUserId)
-      .input('expertName', sql.NVarChar(255), booking.selectedCounselor.trim())
-      .input('scheduledAt', sql.DateTime2, scheduledAt)
-      .input('mode', sql.NVarChar(20), booking.mode === 'offline' ? 'offline' : 'online')
-      .input('notes', sql.NVarChar(sql.MAX), notes)
+      .input('id', id)
+      .input('userId', dbUserId)
+      .input('expertName', booking.selectedCounselor.trim())
+      .input('scheduledAt', scheduledAt)
+      .input('mode', booking.mode === 'offline' ? 'offline' : 'online')
+      .input('notes', notes)
       .query(
         `INSERT INTO appointments(id, user_id, expert_name, scheduled_at, mode, status, notes) 
          VALUES(@id, @userId, @expertName, @scheduledAt, @mode, 'pending', @notes)`
@@ -214,8 +214,8 @@ export async function PATCH(request: Request) {
       const pool = await getDb()
       await pool
         .request()
-        .input('id', sql.UniqueIdentifier, bookingId)
-        .input('status', sql.NVarChar(20), status)
+        .input('id', bookingId)
+        .input('status', status)
         .query(`UPDATE appointments SET status = @status WHERE id = @id`)
     }
 

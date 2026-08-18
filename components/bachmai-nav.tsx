@@ -68,7 +68,7 @@ export function BachMaiNav() {
               >
                 <Icon className="h-5 w-5" />
               </div>
-              <span className="mt-0.5 text-[11px] leading-tight">{item.label}</span>
+              <span className="mt-0.5 text-[11px] leading-tight whitespace-nowrap">{item.label}</span>
             </Link>
           )
         })}

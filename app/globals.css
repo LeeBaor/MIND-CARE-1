@@ -165,3 +165,14 @@
   color: #92400E;
   border: 1px solid #FDE68A;
 }
+
+/* Hide Next.js Dev Tools indicator ('N' icon badge) */
+nextjs-portal,
+[data-nextjs-toast],
+[data-next-badge],
+div[id*="nextjs"],
+div[class*="nextjs-toast"] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}

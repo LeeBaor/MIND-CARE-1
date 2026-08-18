@@ -42,6 +42,26 @@ const MEMORY_ACCOUNTS = new Map<string, MemoryUser>([
       role: 'counselor',
     },
   ],
+  [
+    'benhnhan@mindcare.vn',
+    {
+      id: 'stu-001',
+      name: 'Nguyễn Văn An (Bệnh nhân Demo)',
+      email: 'benhnhan@mindcare.vn',
+      passwordHash: hashPassword('123456'),
+      role: 'student',
+    },
+  ],
+  [
+    'student@mindcare.vn',
+    {
+      id: 'stu-002',
+      name: 'Lê Thị Bình (Học sinh Demo)',
+      email: 'student@mindcare.vn',
+      passwordHash: hashPassword('123456'),
+      role: 'student',
+    },
+  ],
 ])
 
 function hashPassword(password: string) {
@@ -72,7 +92,7 @@ export async function registerAccount(name: string, email: string, password: str
 
   try {
     const pool = await getDb()
-    const existing = await pool.request().input('email', sql.NVarChar(255), normalizedEmail).query('SELECT TOP 1 id FROM users WHERE email = @email')
+    const existing = await pool.request().input('email', normalizedEmail).query('SELECT TOP 1 id FROM users WHERE email = @email')
     if (existing.recordset.length) return false
 
     const dbRole = role === 'admin' ? 'admin' : role === 'counselor' ? 'expert' : 'student'
@@ -81,8 +101,8 @@ export async function registerAccount(name: string, email: string, password: str
     await transaction.begin()
     try {
       const id = memUser.id
-      await new sql.Request(transaction).input('id', sql.UniqueIdentifier, id).input('email', sql.NVarChar(255), normalizedEmail).input('hash', sql.NVarChar(sql.MAX), memUser.passwordHash).input('role', sql.NVarChar(20), dbRole).query('INSERT INTO users(id,email,password_hash,role) VALUES(@id,@email,@hash,@role)')
-      await new sql.Request(transaction).input('userId', sql.UniqueIdentifier, id).input('name', sql.NVarChar(255), name.trim()).query('INSERT INTO profiles(user_id,full_name) VALUES(@userId,@name)')
+      await new sql.Request(transaction).input('id', id).input('email', normalizedEmail).input('hash', memUser.passwordHash).input('role', dbRole).query('INSERT INTO users(id,email,password_hash,role) VALUES(@id,@email,@hash,@role)')
+      await new sql.Request(transaction).input('userId', id).input('name', name.trim()).query('INSERT INTO profiles(user_id,full_name) VALUES(@userId,@name)')
       await transaction.commit()
     } catch (error) { await transaction.rollback(); throw error }
   } catch {
@@ -97,7 +117,7 @@ export async function verifyAccount(email: string, password: string) {
 
   // Try DB first
   try {
-    const result = await (await getDb()).request().input('email', sql.NVarChar(255), normalizedEmail).query('SELECT TOP 1 u.id,u.email,u.password_hash,u.role,p.full_name,u.profile_completed FROM users u JOIN profiles p ON p.user_id=u.id WHERE u.email=@email')
+    const result = await (await getDb()).request().input('email', normalizedEmail).query('SELECT TOP 1 u.id,u.email,u.password_hash,u.role,p.full_name,u.profile_completed FROM users u JOIN profiles p ON p.user_id=u.id WHERE u.email=@email')
     const account = result.recordset[0]
     if (account && passwordMatches(password, account.password_hash)) {
       const mappedRole: Role = account.role === 'admin' ? 'admin' : account.role === 'expert' ? 'counselor' : 'student'
@@ -122,10 +142,10 @@ export async function changePassword(userId: string, currentPassword: string, ne
   try {
     if (!UUID_REGEX.test(userId)) return false
     const pool = await getDb()
-    const result = await pool.request().input('id', sql.UniqueIdentifier, userId).query('SELECT TOP 1 password_hash FROM users WHERE id=@id')
+    const result = await pool.request().input('id', userId).query('SELECT TOP 1 password_hash FROM users WHERE id=@id')
     const account = result.recordset[0]
     if (account && passwordMatches(currentPassword, account.password_hash)) {
-      await pool.request().input('id', sql.UniqueIdentifier, userId).input('hash', sql.NVarChar(sql.MAX), hashPassword(newPassword)).query('UPDATE users SET password_hash=@hash,updated_at=SYSUTCDATETIME() WHERE id=@id')
+      await pool.request().input('id', userId).input('hash', hashPassword(newPassword)).query('UPDATE users SET password_hash=@hash,updated_at=SYSUTCDATETIME() WHERE id=@id')
       return true
     }
   } catch {

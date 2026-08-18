@@ -2,8 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { Heart, Lock, Mail, ArrowRight, ShieldCheck, UserCheck, KeyRound } from 'lucide-react'
+import { Heart, Lock, Mail, ArrowRight } from 'lucide-react'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -50,6 +49,44 @@ export default function LoginPage() {
     }
   }
 
+  const handleQuickLogin = async (email: string, pass: string) => {
+    setFormData({ email, password: pass })
+    setError('')
+    setLoading(true)
+
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password: pass }),
+      })
+
+      setLoading(false)
+
+      if (!response.ok) {
+        const data = await response.json()
+        setError(data.message || 'Email hoặc mật khẩu không chính xác.')
+        return
+      }
+
+      const data = await response.json()
+      const requestedPath = new URLSearchParams(window.location.search).get('next')
+      const safePath = requestedPath?.startsWith('/') && !requestedPath.startsWith('//') ? requestedPath : undefined
+
+      if (data.role === 'admin') {
+        router.push('/admin')
+      } else if (data.role === 'counselor') {
+        router.push('/counselor')
+      } else {
+        router.push(safePath || '/dashboard')
+      }
+      router.refresh()
+    } catch {
+      setLoading(false)
+      setError('Không thể kết nối máy chủ đăng nhập.')
+    }
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col justify-center items-center p-4">
       {/* Brand Header */}
@@ -70,6 +107,46 @@ export default function LoginPage() {
           <p className="text-slate-500 text-xs font-medium">
             Đăng nhập chung dành cho Bệnh nhân, Bác sĩ & Quản trị viên
           </p>
+        </div>
+
+        {/* Quick Login Section (Simple & Clean) */}
+        <div className="mb-5">
+          <p className="text-xs font-semibold text-slate-500 mb-2">Đăng nhập nhanh demo:</p>
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => handleQuickLogin('admin@mindcare.vn', 'admin123')}
+              className="py-2 px-3 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 transition-colors"
+            >
+              Admin
+            </button>
+
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => handleQuickLogin('bacsi@mindcare.vn', '123456')}
+              className="py-2 px-3 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 transition-colors"
+            >
+              Bác sĩ
+            </button>
+
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => handleQuickLogin('benhnhan@mindcare.vn', '123456')}
+              className="py-2 px-3 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 transition-colors"
+            >
+              Bệnh nhân
+            </button>
+          </div>
+        </div>
+
+        <div className="relative flex items-center justify-center mb-5">
+          <div className="border-t border-slate-200 w-full"></div>
+          <span className="bg-white px-2.5 text-[11px] font-medium text-slate-400 absolute">
+            Hoặc nhập tài khoản
+          </span>
         </div>
 
         {/* Form */}
@@ -119,21 +196,6 @@ export default function LoginPage() {
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
-
-        {/* Info Note */}
-        <div className="mt-5 rounded-2xl bg-teal-50/70 p-3.5 border border-teal-100 text-left">
-          <p className="text-[11px] text-teal-800 font-medium leading-relaxed">
-            💡 <strong>Lưu ý:</strong> Tài khoản Bác sĩ & Admin do Quản trị viên hệ thống cấp. Bệnh nhân mới có thể tạo tài khoản ngay bên dưới.
-          </p>
-        </div>
-
-        {/* Register Prompt */}
-        <p className="text-center text-xs font-medium text-slate-500 mt-6">
-          Bạn là Bệnh nhân chưa có tài khoản?{' '}
-          <Link href="/register" className="text-teal-700 hover:underline font-extrabold">
-            Đăng ký Bệnh nhân mới
-          </Link>
-        </p>
       </div>
     </div>
   )

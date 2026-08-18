@@ -12,7 +12,7 @@ export async function getOrEnsureDbUserId(pool: any, session: Session): Promise<
     try {
       const res = await pool
         .request()
-        .input('email', sql.NVarChar(255), cleanEmail)
+        .input('email', cleanEmail)
         .query('SELECT TOP 1 id FROM users WHERE email = @email')
       if (res.recordset.length > 0) {
         return res.recordset[0].id as string
@@ -38,15 +38,15 @@ export async function getOrEnsureDbUserId(pool: any, session: Session): Promise<
     await transaction.begin()
     try {
       await new sql.Request(transaction)
-        .input('id', sql.UniqueIdentifier, validUuid)
-        .input('email', sql.NVarChar(255), userEmail)
-        .input('hash', sql.NVarChar(sql.MAX), 'DEMO_HASH')
-        .input('role', sql.NVarChar(20), dbRole)
+        .input('id', validUuid)
+        .input('email', userEmail)
+        .input('hash', 'DEMO_HASH')
+        .input('role', dbRole)
         .query('INSERT INTO users(id, email, password_hash, role) VALUES(@id, @email, @hash, @role)')
 
       await new sql.Request(transaction)
-        .input('userId', sql.UniqueIdentifier, validUuid)
-        .input('name', sql.NVarChar(255), fullName)
+        .input('userId', validUuid)
+        .input('name', fullName)
         .query('INSERT INTO profiles(user_id, full_name) VALUES(@userId, @name)')
 
       await transaction.commit()

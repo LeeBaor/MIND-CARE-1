@@ -9,8 +9,8 @@ export function DashboardTopbar({ breadcrumb }: DashboardTopbarProps) {
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-card">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4">
-        <div className="flex items-center gap-3">
-          <Link href="/dashboard" className="flex items-center gap-2">
+        <div className="flex items-center gap-3 shrink-0">
+          <Link href="/dashboard" className="flex items-center gap-2 whitespace-nowrap">
             <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
               <HeartHandshake className="size-5" />
             </span>
@@ -18,24 +18,24 @@ export function DashboardTopbar({ breadcrumb }: DashboardTopbarProps) {
               MIND<span className="text-primary">-CARE</span>
             </span>
           </Link>
-          <span className="hidden rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground sm:inline">
+          <span className="hidden rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground sm:inline whitespace-nowrap">
             Chuyên viên
           </span>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 shrink-0">
           <Link
             href="/"
-            className="hidden items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground sm:flex"
+            className="hidden items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground sm:flex whitespace-nowrap"
           >
             Trang học sinh <ExternalLink className="size-3.5" />
           </Link>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 whitespace-nowrap">
             <div className="hidden text-right sm:block">
-              <p className="text-sm font-semibold text-foreground">Chưa có hồ sơ chuyên gia</p>
-              <p className="text-xs text-muted-foreground">Phòng Tư vấn tâm lý</p>
+              <p className="text-sm font-semibold text-foreground whitespace-nowrap">Chưa có hồ sơ chuyên gia</p>
+              <p className="text-xs text-muted-foreground whitespace-nowrap">Phòng Tư vấn tâm lý</p>
             </div>
-            <span className="flex size-9 items-center justify-center rounded-full bg-secondary font-heading text-sm font-bold text-primary">
+            <span className="flex size-9 items-center justify-center rounded-full bg-secondary font-heading text-sm font-bold text-primary shrink-0">
               TH
             </span>
           </div>

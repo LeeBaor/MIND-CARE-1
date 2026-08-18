@@ -10,6 +10,6 @@ export async function POST(request:Request) {
   try {
     const pool = await getDb()
     const dbUserId = session ? await getOrEnsureDbUserId(pool, session) : null
-    const id=randomUUID(); const createdAt=new Date(); await pool.request().input('id',sql.UniqueIdentifier,id).input('userId',sql.UniqueIdentifier,dbUserId).input('payload',sql.NVarChar(sql.MAX),JSON.stringify(payload)).query('INSERT INTO sos_requests(id,user_id,payload) VALUES(@id,@userId,@payload)'); console.warn('[MIND-CARE SOS]',JSON.stringify({id,userId:dbUserId,createdAt})); return NextResponse.json({ok:true,alert:{id,status:'open',createdAt,payload}})
+    const id=randomUUID(); const createdAt=new Date(); await pool.request().input('id',id).input('userId',dbUserId).input('payload',JSON.stringify(payload)).query('INSERT INTO sos_requests(id,user_id,payload) VALUES(@id,@userId,@payload)'); console.warn('[MIND-CARE SOS]',JSON.stringify({id,userId:dbUserId,createdAt})); return NextResponse.json({ok:true,alert:{id,status:'open',createdAt,payload}})
   } catch(error) { console.error('[MIND-CARE SOS ERROR]',error); return NextResponse.json({message:'Không thể gửi tín hiệu SOS. Hãy gọi 111 nếu bạn đang không an toàn.'},{status:503}) }
 }

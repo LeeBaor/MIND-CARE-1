@@ -19,7 +19,7 @@ import {
   ChevronRight as ChevronRightIcon,
   User,
 } from 'lucide-react'
-import { SiteHeader } from '@/components/site-header'
+import { DoctorHeader } from '@/components/doctor-header'
 import { SiteFooter } from '@/components/site-footer'
 import { getBookings, updateBooking, type MindBooking } from '@/lib/mind-care-store'
 
@@ -135,7 +135,7 @@ export default function CounselorPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[#f4fbf6]">
-      <SiteHeader active="dashboard" />
+      <DoctorHeader active="schedule" />
       <main className="flex-1 pb-12">
         <div className="mx-auto max-w-6xl space-y-5 px-3 py-6 sm:px-6">
           {/* Header Banner */}
