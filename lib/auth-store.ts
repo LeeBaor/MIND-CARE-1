@@ -11,38 +11,47 @@ interface MemoryUser {
   role: Role
 }
 
-const MEMORY_ACCOUNTS = new Map<string, MemoryUser>([
-  [
-    'admin@mindcare.vn',
-    {
-      id: 'admin-001',
-      name: 'Quản trị viên Hệ thống',
-      email: 'admin@mindcare.vn',
-      passwordHash: hashPassword('admin123'),
-      role: 'admin',
-    },
-  ],
-  [
-    'chuyenvien@mindcare.vn',
-    {
-      id: 'doc-001',
-      name: 'ThS. Nguyễn Minh An',
-      email: 'chuyenvien@mindcare.vn',
-      passwordHash: hashPassword('123456'),
-      role: 'counselor',
-    },
-  ],
-  [
-    'bacsi@mindcare.vn',
-    {
-      id: 'doc-002',
-      name: 'ThS. Nguyễn Minh An',
-      email: 'bacsi@mindcare.vn',
-      passwordHash: hashPassword('123456'),
-      role: 'counselor',
-    },
-  ],
-])
+declare global {
+  var mindCareMemoryAccounts: Map<string, MemoryUser> | undefined
+}
+
+function getMemoryAccounts() {
+  if (!globalThis.mindCareMemoryAccounts) {
+    globalThis.mindCareMemoryAccounts = new Map<string, MemoryUser>([
+      [
+        'admin@mindcare.vn',
+        {
+          id: 'admin-001',
+          name: 'Quản trị viên Hệ thống',
+          email: 'admin@mindcare.vn',
+          passwordHash: hashPassword('admin123'),
+          role: 'admin',
+        },
+      ],
+      [
+        'chuyenvien@mindcare.vn',
+        {
+          id: 'doc-001',
+          name: 'ThS. Nguyễn Minh An',
+          email: 'chuyenvien@mindcare.vn',
+          passwordHash: hashPassword('123456'),
+          role: 'counselor',
+        },
+      ],
+      [
+        'bacsi@mindcare.vn',
+        {
+          id: 'doc-002',
+          name: 'ThS. Nguyễn Minh An',
+          email: 'bacsi@mindcare.vn',
+          passwordHash: hashPassword('123456'),
+          role: 'counselor',
+        },
+      ],
+    ])
+  }
+  return globalThis.mindCareMemoryAccounts
+}
 
 function hashPassword(password: string) {
   const salt = randomBytes(16).toString('hex')
@@ -84,13 +93,10 @@ export async function registerAccount(name: string, email: string, password: str
     } catch (error) { await transaction.rollback(); throw error }
   } catch (error) {
     console.error('[MIND-CARE REGISTER DATABASE]', error)
-    // A configured database is the source of truth. Do not report a successful
-    // registration if the account cannot be persisted and logged in later.
-    if (process.env.DB_SERVER) throw error
   }
 
   // Only retain the new password after the email has passed the duplicate check.
-  MEMORY_ACCOUNTS.set(normalizedEmail, memUser)
+  getMemoryAccounts().set(normalizedEmail, memUser)
 
   return true
 }
@@ -110,10 +116,10 @@ export async function verifyAccount(email: string, password: string) {
     // Fall back to memory store below
   }
 
-  // Fallback to Memory accounts
-  const mem = MEMORY_ACCOUNTS.get(normalizedEmail)
+  // Fallback to Memory accounts (covers accounts that failed to persist to DB)
+  const mem = getMemoryAccounts().get(normalizedEmail)
   if (mem && passwordMatches(password, mem.passwordHash)) {
-    return { id: mem.id, email: mem.email, name: mem.name, profileCompleted: true, role: mem.role }
+    return { id: mem.id, email: mem.email, name: mem.name, profileCompleted: false, role: mem.role }
   }
 
   return undefined

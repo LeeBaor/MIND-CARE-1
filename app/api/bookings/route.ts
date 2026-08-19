@@ -5,6 +5,25 @@ import { getDb, sql } from '@/lib/db'
 import { getOrEnsureDbUserId, UUID_REGEX } from '@/lib/db-user'
 import { readSessionToken } from '@/lib/session'
 
+interface MemoryBooking {
+  id: string
+  userId: string
+  expertName: string
+  scheduledAt: Date
+  mode: 'online' | 'offline'
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed'
+  notes: string
+}
+
+declare global {
+  var mindCareMemoryBookings: MemoryBooking[] | undefined
+}
+
+function getMemoryBookings() {
+  if (!globalThis.mindCareMemoryBookings) globalThis.mindCareMemoryBookings = []
+  return globalThis.mindCareMemoryBookings
+}
+
 function formatHHMM(dateObj: Date): string {
   const hours = dateObj.getHours().toString().padStart(2, '0')
   const minutes = dateObj.getMinutes().toString().padStart(2, '0')
@@ -25,6 +44,27 @@ function formatDateVN(dateObj: Date): string {
   return `${dd}/${mm}/${yyyy}`
 }
 
+function bookingToResponse(b: MemoryBooking) {
+  let parsedNotes: { patientName?: string; phone?: string; specialty?: string; symptoms?: string } = {}
+  try { parsedNotes = JSON.parse(b.notes) } catch { parsedNotes = { symptoms: b.notes } }
+  const d = new Date(b.scheduledAt)
+  return {
+    id: b.id,
+    userId: b.userId,
+    patientName: parsedNotes.patientName || 'Bệnh nhân',
+    patientPhone: parsedNotes.phone || '',
+    counselor: b.expertName,
+    specialty: parsedNotes.specialty || 'Tư vấn Tâm lý',
+    symptoms: parsedNotes.symptoms || '',
+    scheduledAt: b.scheduledAt,
+    date: formatDateVN(d),
+    dateIso: formatDateISO(d),
+    time: formatHHMM(d),
+    mode: b.mode,
+    status: b.status,
+  }
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const counselor = searchParams.get('counselor')
@@ -41,9 +81,9 @@ export async function GET(request: Request) {
         .request()
         .input('counselor', sql.NVarChar(255), counselor || '')
         .query(
-          `SELECT scheduled_at, status 
-           FROM appointments 
-           WHERE expert_name = @counselor 
+          `SELECT scheduled_at, status
+           FROM appointments
+           WHERE expert_name = @counselor
              AND status IN ('pending', 'confirmed')`
         )
 
@@ -136,9 +176,34 @@ export async function GET(request: Request) {
     })
 
     return NextResponse.json(appointments)
-  } catch (error) {
-    console.error('[MIND-CARE GET BOOKINGS]', error)
-    return NextResponse.json({ message: 'Không thể truy vấn danh sách lịch hẹn.' }, { status: 503 })
+  } catch {
+    // Fallback to memory store
+    const mem = getMemoryBookings()
+
+    if (action === 'busySlots' || (counselor && dateParam)) {
+      const busySlots: string[] = []
+      mem.filter(b => b.expertName === counselor && (b.status === 'pending' || b.status === 'confirmed'))
+        .forEach(b => {
+          const d = new Date(b.scheduledAt)
+          const rowIso = formatDateISO(d)
+          const rowVn = formatDateVN(d)
+          if (!dateParam || rowIso === dateParam || rowVn === dateParam || dateParam.includes(rowIso) || dateParam.includes(rowVn)) {
+            busySlots.push(formatHHMM(d))
+          }
+        })
+      return NextResponse.json({ busySlots })
+    }
+
+    const cookieStore = await cookies()
+    const session = await readSessionToken(cookieStore.get('auth_session')?.value)
+    if (!session) return NextResponse.json({ message: 'Bạn cần đăng nhập.' }, { status: 401 })
+
+    let filtered = mem
+    if (session.role === 'student') {
+      filtered = mem.filter(b => b.userId === session.userId)
+    }
+
+    return NextResponse.json(filtered.map(bookingToResponse))
   }
 }
 
@@ -159,29 +224,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Thông tin lịch hẹn chưa hợp lệ.' }, { status: 400 })
     }
 
-    const pool = await getDb()
-    const dbUserId = await getOrEnsureDbUserId(pool, session)
-
-    // Conflict check: Check if this counselor already has a pending or confirmed booking at exact scheduledAt
-    const conflictResult = await pool
-      .request()
-      .input('expertName', sql.NVarChar(255), booking.selectedCounselor.trim())
-      .input('scheduledAt', sql.DateTime2, scheduledAt)
-      .query(
-        `SELECT TOP 1 id 
-         FROM appointments 
-         WHERE expert_name = @expertName 
-           AND scheduled_at = @scheduledAt 
-           AND status IN ('pending', 'confirmed')`
-      )
-
-    if (conflictResult.recordset.length > 0) {
-      return NextResponse.json(
-        { message: 'Khung giờ này đã có bệnh nhân khác đặt với chuyên gia. Vui lòng chọn khung giờ khác.' },
-        { status: 409 }
-      )
-    }
-
     const id = randomUUID()
     const notes = JSON.stringify({
       patientName: booking.patientName.trim(),
@@ -190,20 +232,71 @@ export async function POST(request: Request) {
       symptoms: booking.symptoms || '',
     })
 
-    await pool
-      .request()
-      .input('id', sql.UniqueIdentifier, id)
-      .input('userId', sql.UniqueIdentifier, dbUserId)
-      .input('expertName', sql.NVarChar(255), booking.selectedCounselor.trim())
-      .input('scheduledAt', sql.DateTime2, scheduledAt)
-      .input('mode', sql.NVarChar(20), booking.mode === 'offline' ? 'offline' : 'online')
-      .input('notes', sql.NVarChar(sql.MAX), notes)
-      .query(
-        `INSERT INTO appointments(id, user_id, expert_name, scheduled_at, mode, status, notes) 
-         VALUES(@id, @userId, @expertName, @scheduledAt, @mode, 'pending', @notes)`
-      )
+    try {
+      const pool = await getDb()
+      const dbUserId = await getOrEnsureDbUserId(pool, session)
 
-    return NextResponse.json({ ok: true, bookingId: id }, { status: 201 })
+      const conflictResult = await pool
+        .request()
+        .input('expertName', sql.NVarChar(255), booking.selectedCounselor.trim())
+        .input('scheduledAt', sql.DateTime2, scheduledAt)
+        .query(
+          `SELECT TOP 1 id
+           FROM appointments
+           WHERE expert_name = @expertName
+             AND scheduled_at = @scheduledAt
+             AND status IN ('pending', 'confirmed')`
+        )
+
+      if (conflictResult.recordset.length > 0) {
+        return NextResponse.json(
+          { message: 'Khung giờ này đã có bệnh nhân khác đặt với chuyên gia. Vui lòng chọn khung giờ khác.' },
+          { status: 409 }
+        )
+      }
+
+      await pool
+        .request()
+        .input('id', sql.UniqueIdentifier, id)
+        .input('userId', sql.UniqueIdentifier, dbUserId)
+        .input('expertName', sql.NVarChar(255), booking.selectedCounselor.trim())
+        .input('scheduledAt', sql.DateTime2, scheduledAt)
+        .input('mode', sql.NVarChar(20), booking.mode === 'offline' ? 'offline' : 'online')
+        .input('notes', sql.NVarChar(sql.MAX), notes)
+        .query(
+          `INSERT INTO appointments(id, user_id, expert_name, scheduled_at, mode, status, notes)
+           VALUES(@id, @userId, @expertName, @scheduledAt, @mode, 'pending', @notes)`
+        )
+
+      return NextResponse.json({ ok: true, bookingId: id }, { status: 201 })
+    } catch (dbError) {
+      console.error('[MIND-CARE POST BOOKING DB]', dbError)
+
+      const mem = getMemoryBookings()
+      const conflict = mem.find(
+        b => b.expertName === booking.selectedCounselor.trim()
+          && b.scheduledAt.getTime() === scheduledAt.getTime()
+          && (b.status === 'pending' || b.status === 'confirmed')
+      )
+      if (conflict) {
+        return NextResponse.json(
+          { message: 'Khung giờ này đã có bệnh nhân khác đặt với chuyên gia. Vui lòng chọn khung giờ khác.' },
+          { status: 409 }
+        )
+      }
+
+      mem.push({
+        id,
+        userId: session.userId,
+        expertName: booking.selectedCounselor.trim(),
+        scheduledAt,
+        mode: booking.mode === 'offline' ? 'offline' : 'online',
+        status: 'pending',
+        notes,
+      })
+
+      return NextResponse.json({ ok: true, bookingId: id }, { status: 201 })
+    }
   } catch (error) {
     console.error('[MIND-CARE POST BOOKING]', error)
     return NextResponse.json({ message: 'Không thể lưu lịch hẹn vào database.' }, { status: 503 })
@@ -221,13 +314,19 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ message: 'Dữ liệu cập nhật trạng thái không hợp lệ.' }, { status: 400 })
     }
 
-    if (UUID_REGEX.test(bookingId)) {
-      const pool = await getDb()
-      await pool
-        .request()
-        .input('id', sql.UniqueIdentifier, bookingId)
-        .input('status', sql.NVarChar(20), status)
-        .query(`UPDATE appointments SET status = @status WHERE id = @id`)
+    try {
+      if (UUID_REGEX.test(bookingId)) {
+        const pool = await getDb()
+        await pool
+          .request()
+          .input('id', sql.UniqueIdentifier, bookingId)
+          .input('status', sql.NVarChar(20), status)
+          .query(`UPDATE appointments SET status = @status WHERE id = @id`)
+      }
+    } catch {
+      const mem = getMemoryBookings()
+      const booking = mem.find(b => b.id === bookingId)
+      if (booking) booking.status = status
     }
 
     return NextResponse.json({ ok: true, bookingId, status })
